@@ -8,10 +8,9 @@ func NewUserRepository() *UserRepository {
 	return &UserRepository{}
 }
 
-func (r *UserRepository) GetUserByID(id int) (*model.User, error) {
+func (r *UserRepository) GetUserByID() (*model.User, error) {
 	// Mock implementation, replace with actual database logic
 	return &model.User{
-		ID:   id,
 		Name: "John Doe",
 	}, nil
 }

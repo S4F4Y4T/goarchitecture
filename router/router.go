@@ -1,11 +1,14 @@
 package router
 
-import "net/http"
+import (
+	"microservice/internals/bootstrap"
+	"net/http"
+)
 
-func Register(handler) *http.ServeMux {
+func Register(handler *bootstrap.App) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	RegisterUsersRoute(mux, handler)
+	RegisterUsersRoute(mux, handler.UserHandler)
 
 	return mux
 }

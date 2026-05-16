@@ -6,5 +6,5 @@ type User struct {
 }
 
 type UserRepository interface {
-	GetUserByID(id int) (*User, error)
+	GetUserByID() (*User, error)
 }

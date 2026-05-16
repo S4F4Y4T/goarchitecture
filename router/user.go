@@ -1,15 +1,18 @@
 package router
 
-import "net/http"
+import (
+	"microservice/internals/handler"
+	"net/http"
+)
 
-func RegisterUsersRoute(mux *http.ServeMux, handler) *http.ServeMux {
+func RegisterUsersRoute(mux *http.ServeMux, handler *handler.UserHandler) *http.ServeMux {
 	userMux := http.NewServeMux()
 
-	userMux.HandleFunc("GET /", handler.GetAllUser)
-	userMux.HandleFunc("GET /{id}", handler.GetUser)
-	userMux.HandleFunc("POST /", handler.CreateUser)
-	userMux.HandleFunc("PUT /{id}", handler.UpdateUser)
-	userMux.HandleFunc("DELETE /{id}", handler.DeleteUser)
+	userMux.HandleFunc("GET /", handler.GetUserByID)
+	userMux.HandleFunc("GET /{id}", handler.GetUserByID)
+	userMux.HandleFunc("POST /", handler.GetUserByID)
+	userMux.HandleFunc("PUT /{id}", handler.GetUserByID)
+	userMux.HandleFunc("DELETE /{id}", handler.GetUserByID)
 
 	mux.Handle("/users/", http.StripPrefix("/users", userMux))
 	return mux

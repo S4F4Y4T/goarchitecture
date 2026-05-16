@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"microservice/config"
+	"microservice/internals/bootstrap"
+	"microservice/router"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,7 +21,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	mux := bootstrap.register()
+	handler := bootstrap.Register()
+
+	mux := router.Register(handler)
 
 	srv := &http.Server{
 		Addr:           ":" + strconv.Itoa(cfg.Port),
