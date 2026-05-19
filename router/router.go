@@ -11,5 +11,5 @@ func Register(handler *bootstrap.App) http.Handler {
 
 	RegisterUsersRoute(mux, handler.UserHandler)
 
-	return middleweare.Logger(mux)
+	return middleweare.Chain(middleweare.Logger, middleweare.Cors, middleweare.PanicRecovery)(mux)
 }
