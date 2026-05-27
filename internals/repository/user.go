@@ -20,9 +20,9 @@ func NewUserRepository(db *gorm.DB) model.UserRepository {
 	}
 }
 
-func (r *UserRepository) GetAllUsers(ctx context.Context) ([]model.User, error) {
+func (r *UserRepository) GetAllUsers(ctx context.Context, page int, limit int) ([]model.User, error) {
 	var users []model.User
-	if err := r.db.WithContext(ctx).Find(&users).Error; err != nil {
+	if err := r.db.WithContext(ctx).Offset((page - 1) * limit).Limit(limit).Find(&users).Error; err != nil {
 		return nil, appError.Internal(err)
 	}
 	return users, nil

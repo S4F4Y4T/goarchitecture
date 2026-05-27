@@ -22,7 +22,22 @@ func NewUserHandler(service *service.UserService) *UserHandler {
 }
 
 func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := h.service.GetAllUsers(r.Context())
+
+	queryParams := r.URL.Query()
+
+	page, err := strconv.Atoi(queryParams.Get("page"))
+	if err != nil {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(queryParams.Get("limit"))
+	if err != nil {
+		limit = 10
+	}
+
+	log.Printf("Fetching users with page: %d, limit: %d", page, limit)
+
+	users, err := h.service.GetAllUsers(r.Context(), page, limit)
 	if err != nil {
 		response.Error(w, r, err)
 		return

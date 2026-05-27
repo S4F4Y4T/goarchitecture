@@ -15,8 +15,8 @@ func NewUserService(repo model.UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
-func (s *UserService) GetAllUsers(c context.Context) ([]model.User, error) {
-	return s.repo.GetAllUsers(c)
+func (s *UserService) GetAllUsers(c context.Context, page int, limit int) ([]model.User, error) {
+	return s.repo.GetAllUsers(c, page, limit)
 }
 
 func (s *UserService) GetUserByID(c context.Context, id int) (*model.User, error) {
