@@ -32,7 +32,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/User"
+              $ref: "#/components/schemas/CreateUserRequest"
       responses:
         "201":
           description: User created
@@ -108,6 +108,22 @@ components:
         name:
           type: string
           example: Alice
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+
+    CreateUserRequest:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          example: Alice
+        email:
+          type: string
+          format: email
+          example: alice@example.com
 
     FieldError:
       type: object

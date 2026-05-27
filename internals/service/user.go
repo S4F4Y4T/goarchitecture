@@ -20,3 +20,7 @@ func (s *UserService) GetAllUsers(c context.Context) ([]model.User, error) {
 func (s *UserService) GetUserByID(c context.Context, id int) (*model.User, error) {
 	return s.repo.GetUserByID(c, id)
 }
+
+func (s *UserService) CreateUser(c context.Context, user *model.User) (*model.User, error) {
+	return s.repo.CreateUser(c, user)
+}

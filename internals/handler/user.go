@@ -1,9 +1,14 @@
 package handler
 
 import (
+	"encoding/json"
+	"log"
+	"microservice/internals/dto"
+	"microservice/internals/model"
 	"microservice/internals/service"
 	"microservice/pkg/appError"
 	"microservice/pkg/response"
+	"microservice/pkg/validation"
 	"net/http"
 	"strconv"
 )
@@ -40,7 +45,29 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	// Implement logic to handle the request and call the service method
+	var req dto.CreateUserRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, r, appError.InvalidInput("invalid request body"))
+		return
+	}
+
+	if err := validation.Validate(&req); err != nil {
+		response.Error(w, r, err)
+		return
+	}
+
+	log.Printf("Creating user: %+v", req)
+
+	createdUser, err := h.service.CreateUser(r.Context(), &model.User{
+		Name:  req.Name,
+		Email: req.Email,
+	})
+	if err != nil {
+		response.Error(w, r, err)
+		return
+	}
+	response.Success(w, http.StatusCreated, "User created successfully", createdUser)
 }
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
