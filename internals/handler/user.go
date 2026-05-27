@@ -2,8 +2,10 @@ package handler
 
 import (
 	"microservice/internals/service"
+	"microservice/pkg/appError"
 	"microservice/pkg/response"
 	"net/http"
+	"strconv"
 )
 
 type UserHandler struct {
@@ -15,20 +17,29 @@ func NewUserHandler(service *service.UserService) *UserHandler {
 }
 
 func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
-	user, err := h.service.GetAllUsers(r.Context())
-
+	users, err := h.service.GetAllUsers(r.Context())
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to retrieve users")
+		response.Error(w, r, err)
 		return
 	}
+	response.Success(w, http.StatusOK, "Users retrieved successfully", users)
+}
 
-	response.Success(w, http.StatusOK, "Users retrieved successfully", user)
+func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		response.Error(w, r, appError.InvalidInput("invalid user id"))
+		return
+	}
+	user, err := h.service.GetUserByID(r.Context(), id)
+	if err != nil {
+		response.Error(w, r, err)
+		return
+	}
+	response.Success(w, http.StatusOK, "User retrieved successfully", user)
 }
 
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	// Implement logic to handle the request and call the service method
-}
-func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	// Implement logic to handle the request and call the service method
 }
 
