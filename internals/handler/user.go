@@ -7,6 +7,7 @@ import (
 	"microservice/internals/model"
 	"microservice/internals/service"
 	"microservice/pkg/appError"
+	"microservice/pkg/pagination"
 	"microservice/pkg/response"
 	"microservice/pkg/validation"
 	"net/http"
@@ -25,24 +26,18 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 
 	queryParams := r.URL.Query()
 
-	page, err := strconv.Atoi(queryParams.Get("page"))
-	if err != nil {
-		page = 1
-	}
+	page, _ := strconv.Atoi(queryParams.Get("page"))
+	limit, _ := strconv.Atoi(queryParams.Get("limit"))
+	params := pagination.NewParams(page, limit)
 
-	limit, err := strconv.Atoi(queryParams.Get("limit"))
-	if err != nil {
-		limit = 10
-	}
+	log.Printf("Fetching users with page: %d, limit: %d", params.Page, params.Limit)
 
-	log.Printf("Fetching users with page: %d, limit: %d", page, limit)
-
-	users, err := h.service.GetAllUsers(r.Context(), page, limit)
+	users, total, err := h.service.GetAllUsers(r.Context(), params)
 	if err != nil {
 		response.Error(w, r, err)
 		return
 	}
-	response.Success(w, http.StatusOK, "Users retrieved successfully", users)
+	response.SuccessWithMeta(w, http.StatusOK, "Users retrieved successfully", users, pagination.NewMeta(params, total))
 }
 
 func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {

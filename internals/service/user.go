@@ -5,6 +5,7 @@ import (
 	"microservice/internals/dto"
 	"microservice/internals/model"
 	"microservice/pkg/appError"
+	"microservice/pkg/pagination"
 )
 
 type UserService struct {
@@ -15,8 +16,8 @@ func NewUserService(repo model.UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
-func (s *UserService) GetAllUsers(c context.Context, page int, limit int) ([]model.User, error) {
-	return s.repo.GetAllUsers(c, page, limit)
+func (s *UserService) GetAllUsers(c context.Context, p pagination.Params) ([]model.User, int64, error) {
+	return s.repo.GetAllUsers(c, p)
 }
 
 func (s *UserService) GetUserByID(c context.Context, id int) (*model.User, error) {

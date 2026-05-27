@@ -1,6 +1,9 @@
 package model
 
-import "context"
+import (
+	"context"
+	"microservice/pkg/pagination"
+)
 
 type User struct {
 	ID    int    `json:"id"`
@@ -10,7 +13,7 @@ type User struct {
 
 type UserRepository interface {
 	GetUserByID(ctx context.Context, id int) (*User, error)
-	GetAllUsers(ctx context.Context, page int, limit int) ([]User, error)
+	GetAllUsers(ctx context.Context, p pagination.Params) ([]User, int64, error)
 	CreateUser(ctx context.Context, user *User) (*User, error)
 	UpdateUser(ctx context.Context, id int, user *User) (*User, error)
 	DeleteUser(ctx context.Context, id int) error

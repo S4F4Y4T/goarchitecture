@@ -5,6 +5,7 @@ import (
 	"errors"
 	"microservice/internals/model"
 	"microservice/pkg/appError"
+	"microservice/pkg/pagination"
 	"strconv"
 
 	"gorm.io/gorm"
@@ -20,12 +21,18 @@ func NewUserRepository(db *gorm.DB) model.UserRepository {
 	}
 }
 
-func (r *UserRepository) GetAllUsers(ctx context.Context, page int, limit int) ([]model.User, error) {
-	var users []model.User
-	if err := r.db.WithContext(ctx).Offset((page - 1) * limit).Limit(limit).Find(&users).Error; err != nil {
-		return nil, appError.Internal(err)
+func (r *UserRepository) GetAllUsers(ctx context.Context, p pagination.Params) ([]model.User, int64, error) {
+	var (
+		users []model.User
+		total int64
+	)
+	if err := r.db.WithContext(ctx).Model(&model.User{}).Count(&total).Error; err != nil {
+		return nil, 0, appError.Internal(err)
 	}
-	return users, nil
+	if err := r.db.WithContext(ctx).Offset(p.Offset()).Limit(p.Limit).Find(&users).Error; err != nil {
+		return nil, 0, appError.Internal(err)
+	}
+	return users, total, nil
 }
 
 func (r *UserRepository) GetUserByID(ctx context.Context, id int) (*model.User, error) {

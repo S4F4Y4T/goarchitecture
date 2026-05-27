@@ -18,6 +18,7 @@ type ApiResponse struct {
 	Success bool       `json:"success"`
 	Message string     `json:"message,omitempty"`
 	Data    any        `json:"data,omitempty"`
+	Meta    any        `json:"meta,omitempty"`
 	Error   *ErrorBody `json:"error,omitempty"`
 }
 
@@ -34,6 +35,15 @@ func Success(w http.ResponseWriter, status int, message string, data any) {
 		Success: true,
 		Message: message,
 		Data:    data,
+	})
+}
+
+func SuccessWithMeta(w http.ResponseWriter, status int, message string, data any, meta any) {
+	JSONResponse(w, status, ApiResponse{
+		Success: true,
+		Message: message,
+		Data:    data,
+		Meta:    meta,
 	})
 }
 
