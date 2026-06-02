@@ -9,15 +9,21 @@ import (
 )
 
 type App struct {
-	UserHandler *handler.UserHandler
+	UserHandler    *handler.UserHandler
+	ProductHandler *handler.ProductHandler
 }
 
 func Register(db *gorm.DB) *App {
-	repo := repository.NewUserRepository(db)
-	service := service.NewUserService(repo)
-	handler := handler.NewUserHandler(service)
+	urepo := repository.NewUserRepository(db)
+	uservice := service.NewUserService(urepo)
+	uhandler := handler.NewUserHandler(uservice)
+
+	prepo := repository.NewProductRepository(db)
+	pservice := service.NewProductService(prepo)
+	phandler := handler.NewProductHandler(pservice)
 
 	return &App{
-		UserHandler: handler,
+		UserHandler:    uhandler,
+		ProductHandler: phandler,
 	}
 }
