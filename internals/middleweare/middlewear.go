@@ -12,3 +12,10 @@ func Chain(middlewares ...Middleware) Middleware {
 		return final
 	}
 }
+
+// With wraps a single handler func with route-specific middleware, running
+// them in the order given. Use it to attach middleware to one route instead
+// of the whole mux, e.g. mux.Handle("POST /", With(h.Create, Test)).
+func With(h http.HandlerFunc, middlewares ...Middleware) http.Handler {
+	return Chain(middlewares...)(h)
+}

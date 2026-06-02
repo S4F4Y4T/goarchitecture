@@ -2,6 +2,7 @@ package router
 
 import (
 	"microservice/internals/handler"
+	"microservice/internals/middleweare"
 	"net/http"
 )
 
@@ -10,7 +11,7 @@ func RegisterProductRoutes(mux *http.ServeMux, handler *handler.ProductHandler) 
 
 	productMux.HandleFunc("GET /", handler.GetAllProducts)
 	productMux.HandleFunc("GET /{id}", handler.GetProductByID)
-	productMux.HandleFunc("POST /", handler.CreateProduct)
+	productMux.Handle("POST /", middleweare.With(handler.CreateProduct, middleweare.Test))
 	productMux.HandleFunc("PUT /{id}", handler.UpdateProduct)
 	productMux.HandleFunc("DELETE /{id}", handler.DeleteProduct)
 
