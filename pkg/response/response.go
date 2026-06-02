@@ -15,14 +15,16 @@ type ErrorBody struct {
 }
 
 type ApiResponse struct {
-	Success bool       `json:"success"`
-	Message string     `json:"message,omitempty"`
-	Data    any        `json:"data,omitempty"`
-	Meta    any        `json:"meta,omitempty"`
-	Error   *ErrorBody `json:"error,omitempty"`
+	Success    bool       `json:"success"`
+	StatusCode int        `json:"status_code"`
+	Message    string     `json:"message,omitempty"`
+	Data       any        `json:"data,omitempty"`
+	Meta       any        `json:"meta,omitempty"`
+	Error      *ErrorBody `json:"error,omitempty"`
 }
 
 func JSONResponse(w http.ResponseWriter, statusCode int, payload ApiResponse) {
+	payload.StatusCode = statusCode
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(payload); err != nil {

@@ -13,6 +13,7 @@ func Register(handler *bootstrap.App) http.Handler {
 	mux := http.NewServeMux()
 
 	RegisterUsersRoute(mux, handler.UserHandler)
+	RegisterProductRoutes(mux, handler.ProductHandler)
 
 	mux.HandleFunc("GET /swagger/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/yaml")
