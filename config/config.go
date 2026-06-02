@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -16,6 +17,13 @@ type DBConfig struct {
 	Password string
 	Name     string
 	SSLMode  string
+
+	// Connection pool tuning. See database.go for how these are applied to the
+	// underlying *sql.DB.
+	MaxOpenConns    int           // hard cap on total open connections
+	MaxIdleConns    int           // connections kept ready in the idle pool
+	ConnMaxLifetime time.Duration // recycle a connection after this age
+	ConnMaxIdleTime time.Duration // close a connection idle for this long
 }
 
 type Config struct {
@@ -84,5 +92,40 @@ func loadDBConfig() (DBConfig, error) {
 		db.SSLMode = "disable"
 	}
 
+	// Pool settings are optional; fall back to production-sane defaults.
+	db.MaxOpenConns = getEnvInt("DB_MAX_OPEN_CONNS", 25)
+	db.MaxIdleConns = getEnvInt("DB_MAX_IDLE_CONNS", 25)
+	db.ConnMaxLifetime = getEnvDuration("DB_CONN_MAX_LIFETIME", 5*time.Minute)
+	db.ConnMaxIdleTime = getEnvDuration("DB_CONN_MAX_IDLE_TIME", 5*time.Minute)
+
 	return db, nil
+}
+
+// getEnvInt reads an integer env var, returning def when unset or unparseable.
+func getEnvInt(key string, def int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		log.Printf("config: invalid %s=%q, using default %d", key, v, def)
+		return def
+	}
+	return n
+}
+
+// getEnvDuration reads a Go duration env var (e.g. "5m", "30s"), returning def
+// when unset or unparseable.
+func getEnvDuration(key string, def time.Duration) time.Duration {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		log.Printf("config: invalid %s=%q, using default %s", key, v, def)
+		return def
+	}
+	return d
 }
