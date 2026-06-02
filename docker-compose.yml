@@ -11,7 +11,12 @@ services:
       - go_cache:/root/go/pkg/mod
     environment:
       PORT: "6969"
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/rest_db?sslmode=disable
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: rest_db
+      DB_SSLMODE: disable
     depends_on:
       postgres:
         condition: service_healthy
@@ -21,9 +26,9 @@ services:
     image: postgres:17-alpine
     container_name: microservice_db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: rest_db
+      POSTGRES_USER: "${DB_USER:-postgres}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-postgres}"
+      POSTGRES_DB: "${DB_NAME:-rest_db}"
     ports:
       - "5433:5432"
     volumes:

@@ -21,7 +21,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := config.SetupDatabase(cfg.DatabaseURL)
+	db, err := config.SetupDatabase(cfg.DB)
 	if err != nil {
 		fmt.Printf("Error setting up database: %v\n", err)
 		os.Exit(1)

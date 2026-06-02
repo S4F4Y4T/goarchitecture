@@ -9,9 +9,18 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type DBConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Name     string
+	SSLMode  string
+}
+
 type Config struct {
-	Port        int
-	DatabaseURL string
+	Port int
+	DB   DBConfig
 }
 
 func LoadConfig() (*Config, error) {
@@ -23,19 +32,57 @@ func LoadConfig() (*Config, error) {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		return nil, fmt.Errorf("Port is missing")
+		return nil, fmt.Errorf("PORT is missing")
 	}
 	portInt, err := strconv.Atoi(port)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid port: %v", err)
+		return nil, fmt.Errorf("invalid PORT: %v", err)
 	}
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		return nil, fmt.Errorf("Database URL is missing")
+
+	db, err := loadDBConfig()
+	if err != nil {
+		return nil, err
 	}
 
 	return &Config{
-		Port:        portInt,
-		DatabaseURL: databaseURL,
+		Port: portInt,
+		DB:   db,
 	}, nil
+}
+
+func loadDBConfig() (DBConfig, error) {
+	db := DBConfig{
+		Host:     os.Getenv("DB_HOST"),
+		Port:     os.Getenv("DB_PORT"),
+		User:     os.Getenv("DB_USER"),
+		Password: os.Getenv("DB_PASSWORD"),
+		Name:     os.Getenv("DB_NAME"),
+		SSLMode:  os.Getenv("DB_SSLMODE"),
+	}
+
+	missing := []string{}
+	if db.Host == "" {
+		missing = append(missing, "DB_HOST")
+	}
+	if db.Port == "" {
+		missing = append(missing, "DB_PORT")
+	}
+	if db.User == "" {
+		missing = append(missing, "DB_USER")
+	}
+	if db.Password == "" {
+		missing = append(missing, "DB_PASSWORD")
+	}
+	if db.Name == "" {
+		missing = append(missing, "DB_NAME")
+	}
+	if len(missing) > 0 {
+		return DBConfig{}, fmt.Errorf("missing database env vars: %v", missing)
+	}
+
+	if db.SSLMode == "" {
+		db.SSLMode = "disable"
+	}
+
+	return db, nil
 }
