@@ -122,5 +122,5 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.Success(w, http.StatusOK, "User deleted successfully", nil)
+	response.NoContent(w)
 }

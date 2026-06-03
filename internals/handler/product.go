@@ -118,5 +118,5 @@ func (h *ProductHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.Success(w, http.StatusOK, "Product deleted successfully", nil)
+	response.NoContent(w)
 }

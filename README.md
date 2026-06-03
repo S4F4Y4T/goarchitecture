@@ -129,7 +129,7 @@ Planned REST best-practice improvements, ordered by impact.
 
 ### Medium value
 
-- [ ] **`DELETE` returns 204** — currently returns 200 with `{"data": null}`; convention is 204 No Content.
+- [x] **`DELETE` returns 204** — `DELETE` now returns 204 No Content with an empty body.
 - [ ] **Structured logging** — replace `log.Printf` / `fmt.Printf` mix with `log/slog`; pairs with the request-ID middleware.
 - [ ] **Filtering & sorting** — extend list endpoints with `?sort=`, `?filter[name]=`, etc.
 - [ ] **Timestamps** — add `created_at` / `updated_at` to the User model (most UIs eventually need them).

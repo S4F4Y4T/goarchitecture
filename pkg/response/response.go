@@ -40,6 +40,12 @@ func Success(w http.ResponseWriter, status int, message string, data any) {
 	})
 }
 
+// NoContent writes a 204 response with an empty body, per REST convention for
+// successful DELETEs and other actions that return no representation.
+func NoContent(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func SuccessWithMeta(w http.ResponseWriter, status int, message string, data any, meta any) {
 	JSONResponse(w, status, ApiResponse{
 		Success: true,
