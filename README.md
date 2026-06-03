@@ -51,7 +51,9 @@ make run
 ```
 
 Default server: `http://localhost:6969`
+API base path: `/v1` (e.g. `http://localhost:6969/v1/users/`)
 Swagger UI: `http://localhost:6969/swagger/`
+Health probes: `GET /healthz` (liveness), `GET /readyz` (readiness, DB ping) — unversioned.
 
 ## Conventions
 
@@ -121,9 +123,9 @@ Planned REST best-practice improvements, ordered by impact.
 - [x] **Strict JSON decoding** — call `dec.DisallowUnknownFields()` so typos in client payloads fail loudly instead of silently dropping fields.
 - [x] **PUT vs PATCH semantics** — `PUT` now does full replacement: every field is required and is written unconditionally (zero values included).
 - [x] **Request ID middleware** — generate a UUID per request, inject into context + `X-Request-ID` header, thread through all logs.
-- [ ] **Health endpoints** — `GET /healthz` (liveness) and `GET /readyz` (readiness with DB ping) for container orchestrators.
-- [ ] **`IdleTimeout` on `http.Server`** — add `IdleTimeout: 60 * time.Second` so keep-alive connections don't pile up.
-- [ ] **API versioning** — prefix routes with `/v1/` so breaking changes can ship without breaking existing clients.
+- [x] **Health endpoints** — `GET /healthz` (liveness) and `GET /readyz` (readiness with DB ping) for container orchestrators.
+- [x] **`IdleTimeout` on `http.Server`** — add `IdleTimeout: 60 * time.Second` so keep-alive connections don't pile up.
+- [x] **API versioning** — prefix routes with `/v1/` so breaking changes can ship without breaking existing clients.
 
 ### Medium value
 

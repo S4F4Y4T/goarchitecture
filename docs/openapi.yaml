@@ -8,11 +8,44 @@ servers:
     description: Local dev
 
 tags:
+  - name: health
   - name: users
   - name: products
 
 paths:
-  /users/:
+  /healthz:
+    get:
+      tags: [health]
+      summary: Liveness probe
+      description: Returns 200 if the process is running. Performs no dependency checks.
+      responses:
+        "200":
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /readyz:
+    get:
+      tags: [health]
+      summary: Readiness probe
+      description: Returns 200 when the service is ready to serve traffic, including a database ping. Returns 503 when the database is unreachable.
+      responses:
+        "200":
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+        "503":
+          description: Service is not ready (database unreachable)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /v1/users/:
     get:
       tags: [users]
       summary: List users
@@ -64,7 +97,7 @@ paths:
         "400":
           $ref: "#/components/responses/ErrorResponse"
 
-  /users/{id}:
+  /v1/users/{id}:
     parameters:
       - name: id
         in: path
@@ -118,7 +151,7 @@ paths:
         "404":
           $ref: "#/components/responses/ErrorResponse"
 
-  /products/:
+  /v1/products/:
     get:
       tags: [products]
       summary: List products
@@ -170,7 +203,7 @@ paths:
         "400":
           $ref: "#/components/responses/ErrorResponse"
 
-  /products/{id}:
+  /v1/products/{id}:
     parameters:
       - name: id
         in: path
