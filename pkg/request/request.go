@@ -3,7 +3,9 @@ package request
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"strings"
 
 	"microservice/pkg/appError"
 )
@@ -13,17 +15,34 @@ import (
 const MaxBodyBytes = 1 << 20
 
 // DecodeJSON wraps r.Body with http.MaxBytesReader before decoding into dst so
-// that oversized payloads are rejected instead of being read into memory. It
-// returns an *appError.AppError on failure, ready to hand to response.Error.
+// that oversized payloads are rejected instead of being read into memory.
+// Unknown fields are rejected so that client typos fail loudly instead of
+// being silently dropped. It returns an *appError.AppError on failure, ready
+// to hand to response.Error.
 func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
 
-	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(dst); err != nil {
 		var maxErr *http.MaxBytesError
 		if errors.As(err, &maxErr) {
 			return appError.InvalidInput("request body too large")
 		}
+		// DisallowUnknownFields surfaces an untyped error of the form
+		// `json: unknown field "foo"`; surface the field name to the client.
+		if field, ok := strings.CutPrefix(err.Error(), "json: unknown field "); ok {
+			return appError.InvalidInput("unknown field " + field)
+		}
 		return appError.InvalidInput("invalid request body")
 	}
+
+	// Reject trailing data so a body with more than one JSON value is not
+	// silently accepted.
+	if err := dec.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return appError.InvalidInput("request body must contain a single JSON object")
+	}
+
 	return nil
 }
