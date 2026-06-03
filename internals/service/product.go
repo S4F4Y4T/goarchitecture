@@ -40,17 +40,9 @@ func (s *ProductService) UpdateProduct(c context.Context, id int, req dto.Update
 		return nil, err
 	}
 
-	if req.Name != "" {
-		product.Name = req.Name
-	}
-
-	if req.Description != "" {
-		product.Description = req.Description
-	}
-
-	if req.Price != 0 {
-		product.Price = req.Price
-	}
+	product.Name = req.Name
+	product.Description = req.Description
+	product.Price = req.Price
 
 	return s.repo.UpdateProduct(c, id, product)
 }

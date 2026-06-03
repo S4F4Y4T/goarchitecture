@@ -57,7 +57,11 @@ func (r *ProductRepository) CreateProduct(ctx context.Context, product *model.Pr
 }
 
 func (r *ProductRepository) UpdateProduct(ctx context.Context, id int, product *model.Product) (*model.Product, error) {
-	res := r.db.WithContext(ctx).Model(&model.Product{}).Where("id = ?", id).Updates(product)
+	// Select the replaceable columns explicitly so PUT writes zero values too
+	// (e.g. clearing description or setting price to 0); a plain Updates with a
+	// struct would skip zero-value fields.
+	res := r.db.WithContext(ctx).Model(&model.Product{}).Where("id = ?", id).
+		Select("name", "description", "price").Updates(product)
 	if res.Error != nil {
 		if isUniqueViolation(res.Error) {
 			return nil, appError.Conflict("product already exists")

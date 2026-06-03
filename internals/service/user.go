@@ -45,11 +45,7 @@ func (s *UserService) UpdateUser(c context.Context, id int, req dto.UpdateUserRe
 		return nil, err
 	}
 
-	if req.Name != "" {
-		user.Name = req.Name
-	}
-
-	if req.Email != "" && req.Email != user.Email {
+	if req.Email != user.Email {
 		exists, err := s.repo.ExistsByEmail(c, req.Email)
 		if err != nil {
 			return nil, err
@@ -57,8 +53,10 @@ func (s *UserService) UpdateUser(c context.Context, id int, req dto.UpdateUserRe
 		if exists {
 			return nil, appError.Conflict("email already exists")
 		}
-		user.Email = req.Email
 	}
+
+	user.Name = req.Name
+	user.Email = req.Email
 
 	return s.repo.UpdateUser(c, id, user)
 }

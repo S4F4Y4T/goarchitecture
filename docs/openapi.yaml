@@ -87,13 +87,13 @@ paths:
           $ref: "#/components/responses/ErrorResponse"
     put:
       tags: [users]
-      summary: Update user
+      summary: Update user (full replacement)
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/User"
+              $ref: "#/components/schemas/UpdateUserRequest"
       responses:
         "200":
           description: User updated
@@ -193,7 +193,7 @@ paths:
           $ref: "#/components/responses/ErrorResponse"
     put:
       tags: [products]
-      summary: Update product
+      summary: Update product (full replacement)
       requestBody:
         required: true
         content:
@@ -252,6 +252,19 @@ components:
           format: email
           example: alice@example.com
 
+    # PUT replaces the whole resource, so the body carries every field.
+    UpdateUserRequest:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          example: Alice
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+
     Product:
       type: object
       properties:
@@ -285,8 +298,10 @@ components:
           minimum: 0
           example: 9.99
 
+    # PUT replaces the whole resource, so the body carries every field.
     UpdateProductRequest:
       type: object
+      required: [name, price]
       properties:
         name:
           type: string
