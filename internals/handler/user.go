@@ -3,6 +3,7 @@ package handler
 import (
 	"log"
 	"microservice/internals/dto"
+	"microservice/internals/middleweare"
 	"microservice/internals/model"
 	"microservice/internals/service"
 	"microservice/pkg/appError"
@@ -67,7 +68,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Creating user: %+v", req)
+	log.Printf("[%s] Creating user: %+v", middleweare.GetRequestID(r.Context()), req)
 
 	createdUser, err := h.service.CreateUser(r.Context(), &model.User{
 		Name:  req.Name,

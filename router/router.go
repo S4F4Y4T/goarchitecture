@@ -21,5 +21,5 @@ func Register(handler *bootstrap.App) http.Handler {
 	})
 	mux.Handle("/swagger/", httpSwagger.Handler(httpSwagger.URL("/swagger/openapi.yaml")))
 
-	return middleweare.Chain(middleweare.Logger, middleweare.Cors, middleweare.PanicRecovery)(mux)
+	return middleweare.Chain(middleweare.RequestID, middleweare.Logger, middleweare.Cors, middleweare.PanicRecovery)(mux)
 }

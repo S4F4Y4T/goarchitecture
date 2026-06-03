@@ -3,6 +3,7 @@ package handler
 import (
 	"log"
 	"microservice/internals/dto"
+	"microservice/internals/middleweare"
 	"microservice/internals/service"
 	"microservice/pkg/appError"
 	"microservice/pkg/pagination"
@@ -66,7 +67,7 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Creating product: %+v", req)
+	log.Printf("[%s] Creating product: %+v", middleweare.GetRequestID(r.Context()), req)
 
 	createdProduct, err := h.service.CreateProduct(r.Context(), req)
 	if err != nil {

@@ -120,7 +120,7 @@ Planned REST best-practice improvements, ordered by impact.
 - [x] **Body size limit** — wrap `r.Body` with `http.MaxBytesReader` before decoding to prevent unbounded uploads.
 - [x] **Strict JSON decoding** — call `dec.DisallowUnknownFields()` so typos in client payloads fail loudly instead of silently dropping fields.
 - [x] **PUT vs PATCH semantics** — `PUT` now does full replacement: every field is required and is written unconditionally (zero values included).
-- [ ] **Request ID middleware** — generate a UUID per request, inject into context + `X-Request-ID` header, thread through all logs.
+- [x] **Request ID middleware** — generate a UUID per request, inject into context + `X-Request-ID` header, thread through all logs.
 - [ ] **Health endpoints** — `GET /healthz` (liveness) and `GET /readyz` (readiness with DB ping) for container orchestrators.
 - [ ] **`IdleTimeout` on `http.Server`** — add `IdleTimeout: 60 * time.Second` so keep-alive connections don't pile up.
 - [ ] **API versioning** — prefix routes with `/v1/` so breaking changes can ship without breaking existing clients.
