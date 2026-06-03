@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"encoding/json"
 	"log"
 	"microservice/internals/dto"
 	"microservice/internals/model"
 	"microservice/internals/service"
 	"microservice/pkg/appError"
 	"microservice/pkg/pagination"
+	"microservice/pkg/request"
 	"microservice/pkg/response"
 	"microservice/pkg/validation"
 	"net/http"
@@ -57,8 +57,8 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateUserRequest
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, r, appError.InvalidInput("invalid request body"))
+	if err := request.DecodeJSON(w, r, &req); err != nil {
+		response.Error(w, r, err)
 		return
 	}
 
@@ -89,8 +89,8 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.UpdateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, r, appError.InvalidInput("invalid request body"))
+	if err := request.DecodeJSON(w, r, &req); err != nil {
+		response.Error(w, r, err)
 		return
 	}
 

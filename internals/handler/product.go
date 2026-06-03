@@ -1,12 +1,12 @@
 package handler
 
 import (
-	"encoding/json"
 	"log"
 	"microservice/internals/dto"
 	"microservice/internals/service"
 	"microservice/pkg/appError"
 	"microservice/pkg/pagination"
+	"microservice/pkg/request"
 	"microservice/pkg/response"
 	"microservice/pkg/validation"
 	"net/http"
@@ -56,8 +56,8 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) 
 func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateProductRequest
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, r, appError.InvalidInput("invalid request body"))
+	if err := request.DecodeJSON(w, r, &req); err != nil {
+		response.Error(w, r, err)
 		return
 	}
 
@@ -85,8 +85,8 @@ func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.UpdateProductRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, r, appError.InvalidInput("invalid request body"))
+	if err := request.DecodeJSON(w, r, &req); err != nil {
+		response.Error(w, r, err)
 		return
 	}
 
