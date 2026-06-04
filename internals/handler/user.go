@@ -1,12 +1,11 @@
 package handler
 
 import (
-	"log"
 	"microservice/internals/dto"
-	"microservice/internals/middleweare"
 	"microservice/internals/model"
 	"microservice/internals/service"
 	"microservice/pkg/appError"
+	"microservice/pkg/logger"
 	"microservice/pkg/pagination"
 	"microservice/pkg/request"
 	"microservice/pkg/response"
@@ -31,7 +30,7 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(queryParams.Get("limit"))
 	params := pagination.NewParams(page, limit)
 
-	log.Printf("Fetching users with page: %d, limit: %d", params.Page, params.Limit)
+	logger.FromContext(r.Context()).Debug("fetching users", "page", params.Page, "limit", params.Limit)
 
 	users, total, err := h.service.GetAllUsers(r.Context(), params)
 	if err != nil {
@@ -68,7 +67,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[%s] Creating user: %+v", middleweare.GetRequestID(r.Context()), req)
+	logger.FromContext(r.Context()).Info("creating user", "name", req.Name)
 
 	createdUser, err := h.service.CreateUser(r.Context(), &model.User{
 		Name:  req.Name,

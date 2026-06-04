@@ -1,8 +1,9 @@
 package middleweare
 
 import (
-	"log"
 	"net/http"
+
+	"microservice/pkg/logger"
 )
 
 // Test is a throwaway middleware for verifying per-route wiring. It logs the
@@ -10,7 +11,7 @@ import (
 // routes it's explicitly attached to.
 func Test(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[test middleware] hit %s %s", r.Method, r.URL.Path)
+		logger.FromContext(r.Context()).Info("test middleware hit", "method", r.Method, "path", r.URL.Path)
 		w.Header().Set("X-Test-Middleware", "ok")
 		next.ServeHTTP(w, r)
 	})

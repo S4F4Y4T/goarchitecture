@@ -2,10 +2,10 @@ package response
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"microservice/pkg/appError"
+	"microservice/pkg/logger"
 )
 
 type ErrorBody struct {
@@ -28,7 +28,7 @@ func JSONResponse(w http.ResponseWriter, statusCode int, payload ApiResponse) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		log.Printf("response: encode failed: %v", err)
+		logger.L().Error("response encode failed", "error", err)
 	}
 }
 
@@ -62,7 +62,11 @@ func Error(w http.ResponseWriter, r *http.Request, err error) {
 	appErr := appError.From(err)
 
 	if appErr.Code == appError.CodeInternal && appErr.Err != nil {
-		log.Printf("internal error %s %s: %v", r.Method, r.URL.Path, appErr.Err)
+		logger.FromContext(r.Context()).Error("internal error",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"error", appErr.Err,
+		)
 	}
 
 	JSONResponse(w, appErr.HTTPStatus(), ApiResponse{

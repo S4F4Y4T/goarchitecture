@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"microservice/config"
 	"microservice/internals/bootstrap"
+	"microservice/pkg/logger"
 	"microservice/router"
 	"net/http"
 	"os"
@@ -15,15 +16,17 @@ import (
 )
 
 func main() {
+	logger.Init(os.Stdout, logger.ParseLevel(os.Getenv("LOG_LEVEL")))
+
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		fmt.Printf("Error loading config: %v\n", err)
+		slog.Error("loading config", "error", err)
 		os.Exit(1)
 	}
 
 	db, err := config.SetupDatabase(cfg.DB)
 	if err != nil {
-		fmt.Printf("Error setting up database: %v\n", err)
+		slog.Error("setting up database", "error", err)
 		os.Exit(1)
 	}
 
@@ -41,8 +44,9 @@ func main() {
 	}
 
 	go func() {
+		slog.Info("server listening", "addr", srv.Addr)
 		if err = srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("Server error: %v\n", err)
+			slog.Error("server error", "error", err)
 			os.Exit(1)
 		}
 	}()
@@ -54,10 +58,10 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	fmt.Println("Shutting down server...")
+	slog.Info("shutting down server")
 
 	if err := srv.Shutdown(ctx); err != nil {
-		fmt.Printf("Server forced to shutdown: %v\n", err)
+		slog.Error("server forced to shutdown", "error", err)
 		os.Exit(1)
 	}
 }

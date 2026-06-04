@@ -130,7 +130,7 @@ Planned REST best-practice improvements, ordered by impact.
 ### Medium value
 
 - [x] **`DELETE` returns 204** — `DELETE` now returns 204 No Content with an empty body.
-- [ ] **Structured logging** — replace `log.Printf` / `fmt.Printf` mix with `log/slog`; pairs with the request-ID middleware.
+- [x] **Structured logging** — `log/slog` JSON logger; a request-scoped logger carrying the request ID flows through the middleware chain into handlers via `pkg/logger`. Level set with `LOG_LEVEL`.
 - [ ] **Filtering & sorting** — extend list endpoints with `?sort=`, `?filter[name]=`, etc.
 - [ ] **Timestamps** — add `created_at` / `updated_at` to the User model (most UIs eventually need them).
 - [ ] **Optimistic concurrency** — `ETag` / `If-Match` or a `version` column on update.

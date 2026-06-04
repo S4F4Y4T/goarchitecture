@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"time"
@@ -35,7 +35,8 @@ func LoadConfig() (*Config, error) {
 
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		slog.Error("loading .env file", "error", err)
+		os.Exit(1)
 	}
 
 	port := os.Getenv("PORT")
@@ -109,7 +110,7 @@ func getEnvInt(key string, def int) int {
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil {
-		log.Printf("config: invalid %s=%q, using default %d", key, v, def)
+		slog.Warn("config: invalid env value, using default", "key", key, "value", v, "default", def)
 		return def
 	}
 	return n
@@ -124,7 +125,7 @@ func getEnvDuration(key string, def time.Duration) time.Duration {
 	}
 	d, err := time.ParseDuration(v)
 	if err != nil {
-		log.Printf("config: invalid %s=%q, using default %s", key, v, def)
+		slog.Warn("config: invalid env value, using default", "key", key, "value", v, "default", def.String())
 		return def
 	}
 	return d
