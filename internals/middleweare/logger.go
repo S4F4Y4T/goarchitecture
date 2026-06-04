@@ -37,7 +37,7 @@ func Logger(next http.Handler) http.Handler {
 
 		next.ServeHTTP(rec, r)
 
-		reqLogger.InfoContext(ctx, "request completed",
+		reqLogger.Info("request completed",
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", rec.status,
