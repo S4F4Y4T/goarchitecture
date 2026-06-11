@@ -9,9 +9,9 @@ import (
 )
 
 type ErrorBody struct {
-	Code    appError.Code         `json:"code"`
+	Code    apperror.Code         `json:"code"`
 	Message string                `json:"message"`
-	Fields  []appError.FieldError `json:"fields,omitempty"`
+	Fields  []apperror.FieldError `json:"fields,omitempty"`
 }
 
 type ApiResponse struct {
@@ -55,13 +55,13 @@ func SuccessWithMeta(w http.ResponseWriter, status int, message string, data any
 	})
 }
 
-// Error normalizes any error into an *appError.AppError and writes a
+// Error normalizes any error into an *apperror.AppError and writes a
 // consistent error response. Internal errors are logged server-side; the
 // client only sees a generic message.
 func Error(w http.ResponseWriter, r *http.Request, err error) {
-	appErr := appError.From(err)
+	appErr := apperror.From(err)
 
-	if appErr.Code == appError.CodeInternal && appErr.Err != nil {
+	if appErr.Code == apperror.CodeInternal && appErr.Err != nil {
 		logger.FromContext(r.Context()).Error("internal error",
 			"method", r.Method,
 			"path", r.URL.Path,

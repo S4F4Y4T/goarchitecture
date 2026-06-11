@@ -42,7 +42,7 @@ func (h *ProductHandler) GetAllProducts(w http.ResponseWriter, r *http.Request) 
 func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		response.Error(w, r, appError.InvalidInput("invalid product id"))
+		response.Error(w, r, apperror.InvalidInput("invalid product id"))
 		return
 	}
 	product, err := h.service.GetProductByID(r.Context(), id)
@@ -80,7 +80,7 @@ func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	uid, err := strconv.Atoi(id)
 	if err != nil {
-		response.Error(w, r, appError.InvalidInput("invalid product id"))
+		response.Error(w, r, apperror.InvalidInput("invalid product id"))
 		return
 	}
 
@@ -108,7 +108,7 @@ func (h *ProductHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	uid, err := strconv.Atoi(id)
 	if err != nil {
-		response.Error(w, r, appError.InvalidInput("invalid product id"))
+		response.Error(w, r, apperror.InvalidInput("invalid product id"))
 		return
 	}
 

@@ -27,10 +27,10 @@ func (r *ProductRepository) GetAllProducts(ctx context.Context, p pagination.Par
 		total    int64
 	)
 	if err := r.db.WithContext(ctx).Model(&model.Product{}).Count(&total).Error; err != nil {
-		return nil, 0, appError.Internal(err)
+		return nil, 0, apperror.Internal(err)
 	}
 	if err := r.db.WithContext(ctx).Offset(p.Offset()).Limit(p.Limit).Find(&products).Error; err != nil {
-		return nil, 0, appError.Internal(err)
+		return nil, 0, apperror.Internal(err)
 	}
 	return products, total, nil
 }
@@ -39,9 +39,9 @@ func (r *ProductRepository) GetProductByID(ctx context.Context, id int) (*model.
 	var product model.Product
 	if err := r.db.WithContext(ctx).First(&product, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, appError.NotFound("product not found with id " + strconv.Itoa(id))
+			return nil, apperror.NotFound("product not found with id " + strconv.Itoa(id))
 		}
-		return nil, appError.Internal(err)
+		return nil, apperror.Internal(err)
 	}
 	return &product, nil
 }
@@ -49,9 +49,9 @@ func (r *ProductRepository) GetProductByID(ctx context.Context, id int) (*model.
 func (r *ProductRepository) CreateProduct(ctx context.Context, product *model.Product) (*model.Product, error) {
 	if err := r.db.WithContext(ctx).Create(product).Error; err != nil {
 		if isUniqueViolation(err) {
-			return nil, appError.Conflict("product already exists")
+			return nil, apperror.Conflict("product already exists")
 		}
-		return nil, appError.Internal(err)
+		return nil, apperror.Internal(err)
 	}
 	return product, nil
 }
@@ -64,12 +64,12 @@ func (r *ProductRepository) UpdateProduct(ctx context.Context, id int, product *
 		Select("name", "description", "price").Updates(product)
 	if res.Error != nil {
 		if isUniqueViolation(res.Error) {
-			return nil, appError.Conflict("product already exists")
+			return nil, apperror.Conflict("product already exists")
 		}
-		return nil, appError.Internal(res.Error)
+		return nil, apperror.Internal(res.Error)
 	}
 	if res.RowsAffected == 0 {
-		return nil, appError.NotFound("product not found with id " + strconv.Itoa(id))
+		return nil, apperror.NotFound("product not found with id " + strconv.Itoa(id))
 	}
 	return product, nil
 }
@@ -77,10 +77,10 @@ func (r *ProductRepository) UpdateProduct(ctx context.Context, id int, product *
 func (r *ProductRepository) DeleteProduct(ctx context.Context, id int) error {
 	res := r.db.WithContext(ctx).Delete(&model.Product{}, id)
 	if res.Error != nil {
-		return appError.Internal(res.Error)
+		return apperror.Internal(res.Error)
 	}
 	if res.RowsAffected == 0 {
-		return appError.NotFound("product not found with id " + strconv.Itoa(id))
+		return apperror.NotFound("product not found with id " + strconv.Itoa(id))
 	}
 	return nil
 }

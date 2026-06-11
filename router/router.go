@@ -3,7 +3,7 @@ package router
 import (
 	"microservice/docs"
 	"microservice/internal/bootstrap"
-	"microservice/pkg/middleweare"
+	"microservice/pkg/middleware"
 	"net/http"
 
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -30,5 +30,5 @@ func Register(handler *bootstrap.App) http.Handler {
 	})
 	mux.Handle("/swagger/", httpSwagger.Handler(httpSwagger.URL("/swagger/openapi.yaml")))
 
-	return middleweare.Chain(middleweare.RequestID, middleweare.Logger, middleweare.Cors, middleweare.PanicRecovery)(mux)
+	return middleware.Chain(middleware.RequestID, middleware.Logger, middleware.Cors, middleware.PanicRecovery)(mux)
 }

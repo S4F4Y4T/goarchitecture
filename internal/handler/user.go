@@ -46,7 +46,7 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		response.Error(w, r, appError.InvalidInput("invalid user id"))
+		response.Error(w, r, apperror.InvalidInput("invalid user id"))
 		return
 	}
 	user, err := h.service.GetUserByID(r.Context(), id)
@@ -87,7 +87,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	uid, err := strconv.Atoi(id)
 	if err != nil {
-		response.Error(w, r, appError.InvalidInput("invalid user id"))
+		response.Error(w, r, apperror.InvalidInput("invalid user id"))
 		return
 	}
 
@@ -115,7 +115,7 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	uid, err := strconv.Atoi(id)
 	if err != nil {
-		response.Error(w, r, appError.InvalidInput("invalid user id"))
+		response.Error(w, r, apperror.InvalidInput("invalid user id"))
 		return
 	}
 

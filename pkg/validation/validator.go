@@ -26,24 +26,24 @@ func newValidate() *validator.Validate {
 }
 
 // Validate runs struct validation. Returns nil on success, or a populated
-// *appError.AppError (with field-level details) on failure.
-func Validate(s any) *appError.AppError {
+// *apperror.AppError (with field-level details) on failure.
+func Validate(s any) *apperror.AppError {
 	err := validate.Struct(s)
 	if err == nil {
 		return nil
 	}
 	var verrs validator.ValidationErrors
 	if !errors.As(err, &verrs) {
-		return appError.InvalidInput("invalid request")
+		return apperror.InvalidInput("invalid request")
 	}
-	fields := make([]appError.FieldError, 0, len(verrs))
+	fields := make([]apperror.FieldError, 0, len(verrs))
 	for _, fe := range verrs {
-		fields = append(fields, appError.FieldError{
+		fields = append(fields, apperror.FieldError{
 			Field:   fe.Field(),
 			Message: message(fe),
 		})
 	}
-	return appError.Validation("validation failed", fields)
+	return apperror.Validation("validation failed", fields)
 }
 
 func message(fe validator.FieldError) string {

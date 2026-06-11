@@ -33,7 +33,7 @@ func (s *UserService) CreateUser(c context.Context, user *model.User) (*model.Us
 	}
 
 	if exists {
-		return nil, appError.Conflict("email already exists")
+		return nil, apperror.Conflict("email already exists")
 	}
 
 	return s.repo.CreateUser(c, user)
@@ -52,7 +52,7 @@ func (s *UserService) UpdateUser(c context.Context, id int, req dto.UpdateUserRe
 			return nil, err
 		}
 		if exists {
-			return nil, appError.Conflict("email already exists")
+			return nil, apperror.Conflict("email already exists")
 		}
 	}
 

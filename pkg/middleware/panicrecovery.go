@@ -1,4 +1,4 @@
-package middleweare
+package middleware
 
 import (
 	"fmt"
@@ -20,7 +20,7 @@ func PanicRecovery(next http.Handler) http.Handler {
 					"panic", rec,
 					"stack", string(debug.Stack()),
 				)
-				response.Error(w, r, appError.Internal(fmt.Errorf("panic: %v", rec)))
+				response.Error(w, r, apperror.Internal(fmt.Errorf("panic: %v", rec)))
 			}
 		}()
 		next.ServeHTTP(w, r)
