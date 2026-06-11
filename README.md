@@ -84,6 +84,33 @@ List endpoints accept `?page=` and `?limit=` query params.
 
 Out-of-range values are clamped, not rejected.
 
+### Filtering & sorting
+
+List endpoints accept `?sort=` and `?filter[field]=` params. Unknown or
+disallowed fields are ignored silently (the request still succeeds).
+
+**Sorting** — comma-separated fields in priority order; a leading `-` sorts
+descending:
+
+```
+GET /v1/users/?sort=name        # name ascending
+GET /v1/users/?sort=-id         # id descending
+GET /v1/users/?sort=-name,id    # name desc, then id asc
+```
+
+**Filtering** — `?filter[field]=value`. String fields match
+case-insensitively as a substring (`ILIKE %value%`); other fields match
+exactly:
+
+```
+GET /v1/users/?filter[name]=al       # name contains "al" (case-insensitive)
+GET /v1/users/?filter[id]=1          # id = 1
+GET /v1/users/?filter[email]=@x.com  # email contains "@x.com"
+```
+
+Sortable/filterable fields are allowlisted per resource. For **users**:
+`id`, `name`, `email`.
+
 ### Error format
 
 ```json
@@ -131,7 +158,7 @@ Planned REST best-practice improvements, ordered by impact.
 
 - [x] **`DELETE` returns 204** — `DELETE` now returns 204 No Content with an empty body.
 - [x] **Structured logging** — `log/slog` JSON logger; a request-scoped logger carrying the request ID flows through the middleware chain into handlers via `pkg/logger`. Level set with `LOG_LEVEL`.
-- [ ] **Filtering & sorting** — extend list endpoints with `?sort=`, `?filter[name]=`, etc.
+- [x] **Filtering & sorting** — list endpoints accept `?sort=` (comma-separated, `-` prefix for desc) and `?filter[field]=` (string fields use case-insensitive partial match), with allowlisted fields per resource. Implemented for users.
 - [ ] **Timestamps** — add `created_at` / `updated_at` to the User model (most UIs eventually need them).
 - [ ] **Optimistic concurrency** — `ETag` / `If-Match` or a `version` column on update.
 

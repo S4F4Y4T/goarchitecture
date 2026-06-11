@@ -7,6 +7,7 @@ import (
 	"microservice/pkg/appError"
 	"microservice/pkg/logger"
 	"microservice/pkg/pagination"
+	"microservice/pkg/query"
 	"microservice/pkg/request"
 	"microservice/pkg/response"
 	"microservice/pkg/validation"
@@ -30,9 +31,11 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(queryParams.Get("limit"))
 	params := pagination.NewParams(page, limit)
 
+	opts := query.Parse(queryParams, model.UserListSchema)
+
 	logger.FromContext(r.Context()).Debug("fetching users", "page", params.Page, "limit", params.Limit)
 
-	users, total, err := h.service.GetAllUsers(r.Context(), params)
+	users, total, err := h.service.GetAllUsers(r.Context(), params, opts)
 	if err != nil {
 		response.Error(w, r, err)
 		return

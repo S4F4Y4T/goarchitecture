@@ -69,6 +69,37 @@ paths:
             maximum: 100
             default: 10
             example: 10
+        - name: sort
+          in: query
+          required: false
+          description: >
+            Comma-separated fields in priority order; a leading '-' sorts
+            descending. Allowed fields: id, name, email. Unknown fields are
+            ignored.
+          schema:
+            type: string
+            example: -name,id
+        - name: filter[name]
+          in: query
+          required: false
+          description: Case-insensitive partial match on name (ILIKE).
+          schema:
+            type: string
+            example: al
+        - name: filter[email]
+          in: query
+          required: false
+          description: Case-insensitive partial match on email (ILIKE).
+          schema:
+            type: string
+            example: "@example.com"
+        - name: filter[id]
+          in: query
+          required: false
+          description: Exact match on id.
+          schema:
+            type: integer
+            example: 1
       responses:
         "200":
           description: Users retrieved successfully

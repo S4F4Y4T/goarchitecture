@@ -6,6 +6,7 @@ import (
 	"microservice/internals/model"
 	"microservice/pkg/appError"
 	"microservice/pkg/pagination"
+	"microservice/pkg/query"
 	"strconv"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -30,15 +31,17 @@ func NewUserRepository(db *gorm.DB) model.UserRepository {
 	}
 }
 
-func (r *UserRepository) GetAllUsers(ctx context.Context, p pagination.Params) ([]model.User, int64, error) {
+func (r *UserRepository) GetAllUsers(ctx context.Context, p pagination.Params, opts query.Options) ([]model.User, int64, error) {
 	var (
 		users []model.User
 		total int64
 	)
-	if err := r.db.WithContext(ctx).Model(&model.User{}).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.User{}).Scopes(applyFilters(opts)).Count(&total).Error; err != nil {
 		return nil, 0, appError.Internal(err)
 	}
-	if err := r.db.WithContext(ctx).Offset(p.Offset()).Limit(p.Limit).Find(&users).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.User{}).
+		Scopes(applyFilters(opts), applySorts(opts)).
+		Offset(p.Offset()).Limit(p.Limit).Find(&users).Error; err != nil {
 		return nil, 0, appError.Internal(err)
 	}
 	return users, total, nil
