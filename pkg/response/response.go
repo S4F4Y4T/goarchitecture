@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"microservice/pkg/appError"
+	"microservice/pkg/apperror"
 	"microservice/pkg/logger"
 )
 

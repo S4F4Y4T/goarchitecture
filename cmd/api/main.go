@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"microservice/config"
-	"microservice/internals/bootstrap"
+	"microservice/internal/bootstrap"
 	"microservice/pkg/logger"
 	"microservice/router"
 	"net/http"

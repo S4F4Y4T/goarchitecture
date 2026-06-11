@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 
-	"microservice/pkg/appError"
+	"microservice/pkg/apperror"
 )
 
 var validate = newValidate()

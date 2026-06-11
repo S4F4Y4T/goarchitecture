@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
-	"microservice/internals/model"
-	"microservice/pkg/appError"
+	"microservice/internal/model"
+	"microservice/pkg/apperror"
 	"microservice/pkg/pagination"
 	"strconv"
 

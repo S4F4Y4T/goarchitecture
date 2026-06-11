@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"microservice/pkg/appError"
+	"microservice/pkg/apperror"
 	"microservice/pkg/logger"
 	"microservice/pkg/response"
 )

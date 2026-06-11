@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"microservice/internals/dto"
-	"microservice/internals/service"
-	"microservice/pkg/appError"
+	"microservice/internal/dto"
+	"microservice/internal/service"
+	"microservice/pkg/apperror"
 	"microservice/pkg/logger"
 	"microservice/pkg/pagination"
 	"microservice/pkg/request"

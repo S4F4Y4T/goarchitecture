@@ -1,8 +1,8 @@
 package router
 
 import (
-	"microservice/internals/handler"
-	"microservice/internals/middleweare"
+	"microservice/internal/handler"
+	"microservice/pkg/middleweare"
 	"net/http"
 )
 

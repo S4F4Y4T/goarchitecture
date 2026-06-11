@@ -2,8 +2,8 @@ package router
 
 import (
 	"microservice/docs"
-	"microservice/internals/bootstrap"
-	"microservice/internals/middleweare"
+	"microservice/internal/bootstrap"
+	"microservice/pkg/middleweare"
 	"net/http"
 
 	httpSwagger "github.com/swaggo/http-swagger"

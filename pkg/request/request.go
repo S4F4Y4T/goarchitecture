@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"microservice/pkg/appError"
+	"microservice/pkg/apperror"
 )
 
 // MaxBodyBytes caps the size of a JSON request body to guard against unbounded

@@ -159,7 +159,7 @@ Planned REST best-practice improvements, ordered by impact.
 - [x] **`DELETE` returns 204** — `DELETE` now returns 204 No Content with an empty body.
 - [x] **Structured logging** — `log/slog` JSON logger; a request-scoped logger carrying the request ID flows through the middleware chain into handlers via `pkg/logger`. Level set with `LOG_LEVEL`.
 - [x] **Filtering & sorting** — list endpoints accept `?sort=` (comma-separated, `-` prefix for desc) and `?filter[field]=` (string fields use case-insensitive partial match), with allowlisted fields per resource. Implemented for users.
-- [ ] **Timestamps** — add `created_at` / `updated_at` to the User model (most UIs eventually need them).
+- [x] **Timestamps** — add `created_at` / `updated_at` to the User model (most UIs eventually need them).
 - [ ] **Optimistic concurrency** — `ETag` / `If-Match` or a `version` column on update.
 
 ### Polish / future

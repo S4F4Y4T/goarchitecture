@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
-	"microservice/internals/dto"
-	"microservice/internals/model"
-	"microservice/pkg/appError"
+	"microservice/internal/dto"
+	"microservice/internal/model"
+	"microservice/pkg/apperror"
 	"microservice/pkg/pagination"
 	"microservice/pkg/query"
 )
