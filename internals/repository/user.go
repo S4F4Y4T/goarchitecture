@@ -5,6 +5,7 @@ import (
 	"errors"
 	"microservice/internals/model"
 	"microservice/pkg/appError"
+	gormquery "microservice/pkg/query/gorm"
 	"microservice/pkg/pagination"
 	"microservice/pkg/query"
 	"strconv"
@@ -36,11 +37,11 @@ func (r *UserRepository) GetAllUsers(ctx context.Context, p pagination.Params, o
 		users []model.User
 		total int64
 	)
-	if err := r.db.WithContext(ctx).Model(&model.User{}).Scopes(applyFilters(opts)).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.User{}).Scopes(gormquery.Filters(opts)).Count(&total).Error; err != nil {
 		return nil, 0, appError.Internal(err)
 	}
 	if err := r.db.WithContext(ctx).Model(&model.User{}).
-		Scopes(applyFilters(opts), applySorts(opts)).
+		Scopes(gormquery.Filters(opts), gormquery.Sorts(opts)).
 		Offset(p.Offset()).Limit(p.Limit).Find(&users).Error; err != nil {
 		return nil, 0, appError.Internal(err)
 	}
