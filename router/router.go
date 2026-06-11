@@ -1,6 +1,7 @@
 package router
 
 import (
+	"microservice/config"
 	"microservice/docs"
 	"microservice/internal/bootstrap"
 	"microservice/pkg/middleware"
@@ -9,7 +10,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-func Register(handler *bootstrap.App) http.Handler {
+func Register(handler *bootstrap.App, cfg *config.Config) http.Handler {
 	mux := http.NewServeMux()
 
 	// Versioned API: routes live under /v1/ so breaking changes can ship as
@@ -30,5 +31,5 @@ func Register(handler *bootstrap.App) http.Handler {
 	})
 	mux.Handle("/swagger/", httpSwagger.Handler(httpSwagger.URL("/swagger/openapi.yaml")))
 
-	return middleware.Chain(middleware.RequestID, middleware.Logger, middleware.Cors, middleware.PanicRecovery)(mux)
+	return middleware.Chain(middleware.RequestID, middleware.Logger, middleware.Cors(cfg.CORS.AllowedOrigins), middleware.PanicRecovery)(mux)
 }

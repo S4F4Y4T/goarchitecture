@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -26,9 +27,16 @@ type DBConfig struct {
 	ConnMaxIdleTime time.Duration // close a connection idle for this long
 }
 
+type CORSConfig struct {
+	// AllowedOrigins lists the origins allowed to make cross-origin requests.
+	// A single "*" entry allows any origin.
+	AllowedOrigins []string
+}
+
 type Config struct {
 	Port int
 	DB   DBConfig
+	CORS CORSConfig
 }
 
 func LoadConfig() (*Config, error) {
@@ -56,7 +64,27 @@ func LoadConfig() (*Config, error) {
 	return &Config{
 		Port: portInt,
 		DB:   db,
+		CORS: loadCORSConfig(),
 	}, nil
+}
+
+// loadCORSConfig reads CORS_ALLOWED_ORIGINS as a comma-separated list of
+// origins (e.g. "https://app.example.com,https://admin.example.com"),
+// defaulting to "*" when unset.
+func loadCORSConfig() CORSConfig {
+	raw := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if raw == "" {
+		slog.Warn("config: CORS_ALLOWED_ORIGINS not set, allowing all origins")
+		return CORSConfig{AllowedOrigins: []string{"*"}}
+	}
+
+	origins := []string{}
+	for _, o := range strings.Split(raw, ",") {
+		if o = strings.TrimSpace(o); o != "" {
+			origins = append(origins, o)
+		}
+	}
+	return CORSConfig{AllowedOrigins: origins}
 }
 
 func loadDBConfig() (DBConfig, error) {

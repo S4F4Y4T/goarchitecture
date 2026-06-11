@@ -32,7 +32,7 @@ func main() {
 
 	handler := bootstrap.Register(db)
 
-	mux := router.Register(handler)
+	mux := router.Register(handler, cfg)
 
 	srv := &http.Server{
 		Addr:           ":" + strconv.Itoa(cfg.Port),
