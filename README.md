@@ -57,6 +57,44 @@ Health probes: `GET /healthz` (liveness), `GET /readyz` (readiness, DB ping) —
 
 ## Conventions
 
+### Authentication & authorization
+
+Auth is JWT-based (HMAC-SHA256, signed with `JWT_SECRET`, valid for `JWT_TTL`,
+default 1h). All `/v1` endpoints except `/v1/auth/register` and
+`/v1/auth/login` require a Bearer token; health probes and Swagger stay public.
+
+```bash
+# Sign up (always creates the "user" role) — returns a token
+curl -X POST localhost:6969/v1/auth/register \
+  -d '{"name":"Alice","email":"alice@example.com","password":"correct-horse-battery"}'
+
+# Log in
+curl -X POST localhost:6969/v1/auth/login \
+  -d '{"email":"alice@example.com","password":"correct-horse-battery"}'
+
+# Authenticated request
+curl localhost:6969/v1/auth/me -H "Authorization: Bearer <token>"
+```
+
+Roles are `user` and `admin`:
+
+| Action                          | user           | admin |
+|---------------------------------|----------------|-------|
+| Read users/products             | ✓              | ✓     |
+| Update / delete a user          | own account    | any   |
+| Create user via `POST /users/`  | —              | ✓     |
+| Create / update / delete product| —              | ✓     |
+
+Roles are never taken from client input. To promote an admin, update the row
+directly:
+
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'alice@example.com';
+```
+
+Accounts created before auth existed (or via admin `POST /users/`) have no
+password and cannot log in until one is set the same way.
+
 ### Response envelope
 
 All endpoints return:
@@ -109,7 +147,7 @@ GET /v1/users/?filter[email]=@x.com  # email contains "@x.com"
 ```
 
 Sortable/filterable fields are allowlisted per resource. For **users**:
-`id`, `name`, `email`.
+`id`, `name`, `email`, `role` (plus `created_at` / `updated_at`, sort only).
 
 ### Error format
 
@@ -165,7 +203,7 @@ Planned REST best-practice improvements, ordered by impact.
 ### Polish / future
 
 - [ ] **Rate limiting** — middleware-level token bucket.
-- [ ] **Authentication & authorization** — currently no auth on any endpoint.
+- [x] **Authentication & authorization** — JWT bearer auth (`/v1/auth/register`, `/v1/auth/login`, `/v1/auth/me`) with bcrypt password hashing and user/admin roles; all `/v1` endpoints require a token, writes are role-gated (see Conventions).
 - [ ] **Metrics** — `/metrics` Prometheus endpoint with request duration histograms.
 - [ ] **Tests** — no `_test.go` files yet; start with handler-level integration tests against a test DB.
 - [ ] **CORS allowed origins from config** — avoid hardcoded values in middleware.

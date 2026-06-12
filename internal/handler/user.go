@@ -6,6 +6,7 @@ import (
 	"microservice/internal/service"
 	"microservice/pkg/apperror"
 	"microservice/pkg/logger"
+	"microservice/pkg/middleware"
 	"microservice/pkg/pagination"
 	"microservice/pkg/query"
 	"microservice/pkg/request"
@@ -83,11 +84,23 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, http.StatusCreated, "User created successfully", createdUser)
 }
 
+// canModify reports whether the authenticated caller may modify the user with
+// the given id: admins can modify anyone, others only themselves.
+func canModify(r *http.Request, id int) bool {
+	claims := middleware.Claims(r.Context())
+	return claims != nil && (claims.Role == model.RoleAdmin || claims.UserID == id)
+}
+
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	uid, err := strconv.Atoi(id)
 	if err != nil {
 		response.Error(w, r, apperror.InvalidInput("invalid user id"))
+		return
+	}
+
+	if !canModify(r, uid) {
+		response.Error(w, r, apperror.Forbidden("you can only modify your own account"))
 		return
 	}
 
@@ -116,6 +129,11 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	uid, err := strconv.Atoi(id)
 	if err != nil {
 		response.Error(w, r, apperror.InvalidInput("invalid user id"))
+		return
+	}
+
+	if !canModify(r, uid) {
+		response.Error(w, r, apperror.Forbidden("you can only modify your own account"))
 		return
 	}
 

@@ -59,6 +59,17 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id int) (*model.User, 
 	return &user, nil
 }
 
+func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+	var user model.User
+	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.NotFound("user not found with email " + email)
+		}
+		return nil, apperror.Internal(err)
+	}
+	return &user, nil
+}
+
 func (r *UserRepository) CreateUser(ctx context.Context, user *model.User) (*model.User, error) {
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
 		if isUniqueViolation(err) {

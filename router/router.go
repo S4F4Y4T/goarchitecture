@@ -4,6 +4,7 @@ import (
 	"microservice/config"
 	"microservice/docs"
 	"microservice/internal/bootstrap"
+	"microservice/internal/model"
 	"microservice/pkg/middleware"
 	"net/http"
 
@@ -13,11 +14,17 @@ import (
 func Register(handler *bootstrap.App, cfg *config.Config) http.Handler {
 	mux := http.NewServeMux()
 
+	// Route-level auth middleware: auth rejects anonymous requests, admin
+	// additionally requires the admin role (and must run after auth).
+	auth := middleware.Authenticate(handler.Tokens)
+	admin := middleware.RequireRole(model.RoleAdmin)
+
 	// Versioned API: routes live under /v1/ so breaking changes can ship as
 	// /v2/ without breaking existing clients.
 	v1 := http.NewServeMux()
-	RegisterUsersRoute(v1, handler.UserHandler)
-	RegisterProductRoutes(v1, handler.ProductHandler)
+	RegisterAuthRoutes(v1, handler.AuthHandler, auth)
+	RegisterUsersRoute(v1, handler.UserHandler, auth, admin)
+	RegisterProductRoutes(v1, handler.ProductHandler, auth, admin)
 	mux.Handle("/v1/", http.StripPrefix("/v1", v1))
 
 	// Health endpoints stay unversioned at the root so container orchestrators

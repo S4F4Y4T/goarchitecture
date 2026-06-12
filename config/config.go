@@ -33,10 +33,18 @@ type CORSConfig struct {
 	AllowedOrigins []string
 }
 
+type AuthConfig struct {
+	// JWTSecret signs and verifies access tokens (HMAC-SHA256). Required.
+	JWTSecret string
+	// JWTTTL is how long an issued token stays valid.
+	JWTTTL time.Duration
+}
+
 type Config struct {
 	Port int
 	DB   DBConfig
 	CORS CORSConfig
+	Auth AuthConfig
 }
 
 func LoadConfig() (*Config, error) {
@@ -61,10 +69,27 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
+	auth, err := loadAuthConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		Port: portInt,
 		DB:   db,
 		CORS: loadCORSConfig(),
+		Auth: auth,
+	}, nil
+}
+
+func loadAuthConfig() (AuthConfig, error) {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return AuthConfig{}, fmt.Errorf("JWT_SECRET is missing")
+	}
+	return AuthConfig{
+		JWTSecret: secret,
+		JWTTTL:    getEnvDuration("JWT_TTL", time.Hour),
 	}, nil
 }
 

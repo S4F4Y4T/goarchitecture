@@ -30,7 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	handler := bootstrap.Register(db)
+	handler := bootstrap.Register(db, cfg)
 
 	mux := router.Register(handler, cfg)
 
