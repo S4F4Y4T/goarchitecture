@@ -30,9 +30,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	rdb, err := config.SetupRedis(cfg.Redis)
+	if err != nil {
+		slog.Error("setting up redis", "error", err)
+		os.Exit(1)
+	}
+	if rdb != nil {
+		defer rdb.Close()
+	}
+
 	handler := bootstrap.Register(db)
 
-	mux := router.Register(handler, cfg)
+	mux := router.Register(handler, cfg, rdb)
 
 	srv := &http.Server{
 		Addr:           ":" + strconv.Itoa(cfg.Port),

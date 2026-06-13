@@ -33,10 +33,23 @@ type CORSConfig struct {
 	AllowedOrigins []string
 }
 
+type RedisConfig struct {
+	Addr     string
+	Password string
+	DB       int
+}
+
+type RateLimitConfig struct {
+	Requests int
+	Window   time.Duration
+}
+
 type Config struct {
-	Port int
-	DB   DBConfig
-	CORS CORSConfig
+	Port      int
+	DB        DBConfig
+	CORS      CORSConfig
+	Redis     *RedisConfig  // nil when REDIS_ADDR is unset; rate limiting is disabled
+	RateLimit RateLimitConfig
 }
 
 func LoadConfig() (*Config, error) {
@@ -62,9 +75,11 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &Config{
-		Port: portInt,
-		DB:   db,
-		CORS: loadCORSConfig(),
+		Port:      portInt,
+		DB:        db,
+		CORS:      loadCORSConfig(),
+		Redis:     loadRedisConfig(),
+		RateLimit: loadRateLimitConfig(),
 	}, nil
 }
 
@@ -128,6 +143,26 @@ func loadDBConfig() (DBConfig, error) {
 	db.ConnMaxIdleTime = getEnvDuration("DB_CONN_MAX_IDLE_TIME", 5*time.Minute)
 
 	return db, nil
+}
+
+func loadRedisConfig() *RedisConfig {
+	addr := os.Getenv("REDIS_ADDR")
+	if addr == "" {
+		slog.Warn("config: REDIS_ADDR not set, rate limiting disabled")
+		return nil
+	}
+	return &RedisConfig{
+		Addr:     addr,
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       getEnvInt("REDIS_DB", 0),
+	}
+}
+
+func loadRateLimitConfig() RateLimitConfig {
+	return RateLimitConfig{
+		Requests: getEnvInt("RATE_LIMIT_REQUESTS", 100),
+		Window:   getEnvDuration("RATE_LIMIT_WINDOW", time.Minute),
+	}
 }
 
 // getEnvInt reads an integer env var, returning def when unset or unparseable.

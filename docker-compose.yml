@@ -17,8 +17,13 @@ services:
       DB_PASSWORD: postgres
       DB_NAME: rest_db
       DB_SSLMODE: disable
+      REDIS_ADDR: "redis:6379"
+      RATE_LIMIT_REQUESTS: "100"
+      RATE_LIMIT_WINDOW: "1m"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -39,6 +44,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: microservice_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: microservice_pgadmin
@@ -57,3 +76,4 @@ volumes:
   postgres_data:
   go_cache:
   pgadmin_data:
+  redis_data:

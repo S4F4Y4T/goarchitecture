@@ -7,10 +7,12 @@ import (
 	"microservice/pkg/middleware"
 	"net/http"
 
+	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-func Register(handler *bootstrap.App, cfg *config.Config) http.Handler {
+func Register(handler *bootstrap.App, cfg *config.Config, rdb *redis.Client) http.Handler {
+	_ = rdb // reserved for future use
 	mux := http.NewServeMux()
 
 	// Versioned API: routes live under /v1/ so breaking changes can ship as
@@ -31,5 +33,11 @@ func Register(handler *bootstrap.App, cfg *config.Config) http.Handler {
 	})
 	mux.Handle("/swagger/", httpSwagger.Handler(httpSwagger.URL("/swagger/openapi.yaml")))
 
-	return middleware.Chain(middleware.RequestID, middleware.Logger, middleware.Cors(cfg.CORS.AllowedOrigins), middleware.PanicRecovery)(mux)
+	return middleware.Chain(
+		middleware.RequestID,
+		middleware.Logger,
+		middleware.Cors(cfg.CORS.AllowedOrigins),
+		middleware.RateLimit(cfg.RateLimit.Requests, cfg.RateLimit.Window),
+		middleware.PanicRecovery,
+	)(mux)
 }

@@ -10,12 +10,13 @@ import (
 type Code string
 
 const (
-	CodeNotFound     Code = "NOT_FOUND"
-	CodeInvalidInput Code = "INVALID_INPUT"
-	CodeConflict     Code = "CONFLICT"
-	CodeUnauthorized Code = "UNAUTHORIZED"
-	CodeForbidden    Code = "FORBIDDEN"
-	CodeInternal     Code = "INTERNAL"
+	CodeNotFound        Code = "NOT_FOUND"
+	CodeInvalidInput    Code = "INVALID_INPUT"
+	CodeConflict        Code = "CONFLICT"
+	CodeUnauthorized    Code = "UNAUTHORIZED"
+	CodeForbidden       Code = "FORBIDDEN"
+	CodeTooManyRequests Code = "TOO_MANY_REQUESTS"
+	CodeInternal        Code = "INTERNAL"
 )
 
 type FieldError struct {
@@ -51,6 +52,8 @@ func (e *AppError) HTTPStatus() int {
 		return http.StatusUnauthorized
 	case CodeForbidden:
 		return http.StatusForbidden
+	case CodeTooManyRequests:
+		return http.StatusTooManyRequests
 	default:
 		return http.StatusInternalServerError
 	}
