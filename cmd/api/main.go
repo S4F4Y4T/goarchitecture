@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"log/slog"
-	"microservice/config"
 	"microservice/internal/bootstrap"
+	"microservice/internal/config"
+	"microservice/internal/router"
 	"microservice/pkg/logger"
-	"microservice/router"
 	"net/http"
 	"os"
 	"os/signal"
