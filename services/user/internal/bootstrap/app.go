@@ -1,9 +1,9 @@
 package bootstrap
 
 import (
-	"microservice/internal/handler"
-	"microservice/internal/repository"
-	"microservice/internal/service"
+	"microservice/services/user/internal/handler"
+	"microservice/services/user/internal/repository"
+	"microservice/services/user/internal/service"
 
 	"gorm.io/gorm"
 )

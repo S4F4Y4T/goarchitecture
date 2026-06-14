@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"log/slog"
-	"microservice/internal/bootstrap"
-	"microservice/internal/config"
-	"microservice/internal/router"
+	"microservice/services/user/internal/bootstrap"
+	"microservice/services/user/internal/config"
+	"microservice/services/user/internal/router"
 	"microservice/pkg/logger"
 	"net/http"
 	"os"

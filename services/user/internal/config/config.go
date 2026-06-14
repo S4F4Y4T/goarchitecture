@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strconv"
 	"strings"
 	"time"
+
+	pkgconfig "microservice/pkg/config"
 
 	"github.com/joho/godotenv"
 )
@@ -48,7 +49,7 @@ type Config struct {
 	Port      int
 	DB        DBConfig
 	CORS      CORSConfig
-	Redis     *RedisConfig  // nil when REDIS_ADDR is unset; rate limiting is disabled
+	Redis     *RedisConfig // nil when REDIS_ADDR is unset; rate limiting is disabled
 	RateLimit RateLimitConfig
 }
 
@@ -64,9 +65,9 @@ func LoadConfig() (*Config, error) {
 	if port == "" {
 		return nil, fmt.Errorf("PORT is missing")
 	}
-	portInt, err := strconv.Atoi(port)
-	if err != nil {
-		return nil, fmt.Errorf("invalid PORT: %v", err)
+	portInt := pkgconfig.GetEnvInt("PORT", 0)
+	if portInt == 0 {
+		return nil, fmt.Errorf("invalid PORT")
 	}
 
 	db, err := loadDBConfig()
@@ -136,11 +137,10 @@ func loadDBConfig() (DBConfig, error) {
 		db.SSLMode = "disable"
 	}
 
-	// Pool settings are optional; fall back to production-sane defaults.
-	db.MaxOpenConns = getEnvInt("DB_MAX_OPEN_CONNS", 25)
-	db.MaxIdleConns = getEnvInt("DB_MAX_IDLE_CONNS", 25)
-	db.ConnMaxLifetime = getEnvDuration("DB_CONN_MAX_LIFETIME", 5*time.Minute)
-	db.ConnMaxIdleTime = getEnvDuration("DB_CONN_MAX_IDLE_TIME", 5*time.Minute)
+	db.MaxOpenConns = pkgconfig.GetEnvInt("DB_MAX_OPEN_CONNS", 25)
+	db.MaxIdleConns = pkgconfig.GetEnvInt("DB_MAX_IDLE_CONNS", 25)
+	db.ConnMaxLifetime = pkgconfig.GetEnvDuration("DB_CONN_MAX_LIFETIME", 5*time.Minute)
+	db.ConnMaxIdleTime = pkgconfig.GetEnvDuration("DB_CONN_MAX_IDLE_TIME", 5*time.Minute)
 
 	return db, nil
 }
@@ -154,42 +154,13 @@ func loadRedisConfig() *RedisConfig {
 	return &RedisConfig{
 		Addr:     addr,
 		Password: os.Getenv("REDIS_PASSWORD"),
-		DB:       getEnvInt("REDIS_DB", 0),
+		DB:       pkgconfig.GetEnvInt("REDIS_DB", 0),
 	}
 }
 
 func loadRateLimitConfig() RateLimitConfig {
 	return RateLimitConfig{
-		Requests: getEnvInt("RATE_LIMIT_REQUESTS", 100),
-		Window:   getEnvDuration("RATE_LIMIT_WINDOW", time.Minute),
+		Requests: pkgconfig.GetEnvInt("RATE_LIMIT_REQUESTS", 100),
+		Window:   pkgconfig.GetEnvDuration("RATE_LIMIT_WINDOW", time.Minute),
 	}
-}
-
-// getEnvInt reads an integer env var, returning def when unset or unparseable.
-func getEnvInt(key string, def int) int {
-	v := os.Getenv(key)
-	if v == "" {
-		return def
-	}
-	n, err := strconv.Atoi(v)
-	if err != nil {
-		slog.Warn("config: invalid env value, using default", "key", key, "value", v, "default", def)
-		return def
-	}
-	return n
-}
-
-// getEnvDuration reads a Go duration env var (e.g. "5m", "30s"), returning def
-// when unset or unparseable.
-func getEnvDuration(key string, def time.Duration) time.Duration {
-	v := os.Getenv(key)
-	if v == "" {
-		return def
-	}
-	d, err := time.ParseDuration(v)
-	if err != nil {
-		slog.Warn("config: invalid env value, using default", "key", key, "value", v, "default", def.String())
-		return def
-	}
-	return d
 }

@@ -2,7 +2,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: deploy/docker/Dockerfile.user
     container_name: microservice_app
     ports:
       - "6969:6969"

@@ -1,7 +1,7 @@
 package router
 
 import (
-	"microservice/internal/handler"
+	"microservice/services/user/internal/handler"
 	"net/http"
 )
 

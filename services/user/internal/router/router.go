@@ -1,9 +1,9 @@
 package router
 
 import (
-	"microservice/internal/config"
-	"microservice/docs"
-	"microservice/internal/bootstrap"
+	"microservice/services/user/internal/bootstrap"
+	"microservice/services/user/internal/config"
+	"microservice/docs/user"
 	"microservice/pkg/middleware"
 	"net/http"
 

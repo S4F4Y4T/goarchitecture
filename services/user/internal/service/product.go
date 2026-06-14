@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"microservice/internal/dto"
-	"microservice/internal/model"
+	"microservice/services/user/internal/dto"
+	"microservice/services/user/internal/model"
 	"microservice/pkg/pagination"
 )
 

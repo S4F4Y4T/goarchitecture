@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
-	"microservice/internal/model"
+	"microservice/services/user/internal/model"
 	"microservice/pkg/apperror"
 	gormquery "microservice/pkg/query/gorm"
 	"microservice/pkg/pagination"
