@@ -25,9 +25,11 @@ return count
 `)
 
 // RateLimit returns a fixed-window per-IP rate-limit middleware backed by Redis.
+// namespace scopes the Redis key to this service so multiple services sharing
+// the same Redis instance do not consume from each other's rate limit buckets.
 // When rdb is nil (Redis not configured) the middleware is a no-op.
 // On Redis errors the middleware fails open so the service stays available.
-func RateLimit(rdb *redis.Client, requests int, window time.Duration) Middleware {
+func RateLimit(rdb *redis.Client, namespace string, requests int, window time.Duration) Middleware {
 	if rdb == nil {
 		return func(next http.Handler) http.Handler { return next }
 	}
@@ -36,7 +38,7 @@ func RateLimit(rdb *redis.Client, requests int, window time.Duration) Middleware
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			key := "rl:" + clientIP(r)
+			key := "rl:" + namespace + ":" + clientIP(r)
 
 			count, err := incrScript.Run(
 				context.Background(),

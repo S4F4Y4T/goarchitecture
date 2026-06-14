@@ -2,10 +2,12 @@ package handler
 
 import (
 	"github.com/s4f4y4t/go-microservice/services/catalog/internal/dto"
+	"github.com/s4f4y4t/go-microservice/services/catalog/internal/model"
 	"github.com/s4f4y4t/go-microservice/services/catalog/internal/service"
 	"github.com/s4f4y4t/go-microservice/pkg/apperror"
 	"github.com/s4f4y4t/go-microservice/pkg/logger"
 	"github.com/s4f4y4t/go-microservice/pkg/pagination"
+	"github.com/s4f4y4t/go-microservice/pkg/query"
 	"github.com/s4f4y4t/go-microservice/pkg/request"
 	"github.com/s4f4y4t/go-microservice/pkg/response"
 	"github.com/s4f4y4t/go-microservice/pkg/validation"
@@ -28,9 +30,11 @@ func (h *ProductHandler) GetAllProducts(w http.ResponseWriter, r *http.Request) 
 	limit, _ := strconv.Atoi(queryParams.Get("limit"))
 	params := pagination.NewParams(page, limit)
 
+	opts := query.Parse(queryParams, model.ProductListSchema)
+
 	logger.FromContext(r.Context()).Debug("fetching products", "page", params.Page, "limit", params.Limit)
 
-	products, total, err := h.service.GetAllProducts(r.Context(), params)
+	products, total, err := h.service.GetAllProducts(r.Context(), params, opts)
 	if err != nil {
 		response.Error(w, r, err)
 		return

@@ -1,19 +1,17 @@
 .PHONY: run build dev clean test lint tidy \
         migrate-up migrate-down migrate-create
 
-BIN := ./bin/api
 SVC ?= user
 
 run:
 	go run ./services/$(SVC)/cmd/api/main.go
 
 build:
-	@rm -rf $(BIN)
 	@mkdir -p bin
-	go build -o $(BIN) ./services/$(SVC)/cmd/api/main.go
+	go build -o ./bin/$(SVC) ./services/$(SVC)/cmd/api/main.go
 
 dev:
-	air
+	air -c services/$(SVC)/.air.toml
 
 clean:
 	rm -rf bin tmp
@@ -25,7 +23,9 @@ lint:
 	golangci-lint run ./...
 
 tidy:
-	go mod tidy
+	cd pkg && go mod tidy
+	cd services/user && go mod tidy
+	cd services/catalog && go mod tidy
 
 migrate-up:
 	./scripts/migrate.sh $(SVC) up

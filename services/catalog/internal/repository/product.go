@@ -6,6 +6,8 @@ import (
 	"github.com/s4f4y4t/go-microservice/services/catalog/internal/model"
 	"github.com/s4f4y4t/go-microservice/pkg/apperror"
 	"github.com/s4f4y4t/go-microservice/pkg/pagination"
+	gormquery "github.com/s4f4y4t/go-microservice/pkg/query/gorm"
+	"github.com/s4f4y4t/go-microservice/pkg/query"
 	"strconv"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -25,15 +27,17 @@ func NewProductRepository(db *gorm.DB) model.ProductRepository {
 	return &ProductRepository{db: db}
 }
 
-func (r *ProductRepository) GetAllProducts(ctx context.Context, p pagination.Params) ([]model.Product, int64, error) {
+func (r *ProductRepository) GetAllProducts(ctx context.Context, p pagination.Params, opts query.Options) ([]model.Product, int64, error) {
 	var (
 		products []model.Product
 		total    int64
 	)
-	if err := r.db.WithContext(ctx).Model(&model.Product{}).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.Product{}).Scopes(gormquery.Filters(opts)).Count(&total).Error; err != nil {
 		return nil, 0, apperror.Internal(err)
 	}
-	if err := r.db.WithContext(ctx).Offset(p.Offset()).Limit(p.Limit).Find(&products).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.Product{}).
+		Scopes(gormquery.Filters(opts), gormquery.Sorts(opts)).
+		Offset(p.Offset()).Limit(p.Limit).Find(&products).Error; err != nil {
 		return nil, 0, apperror.Internal(err)
 	}
 	return products, total, nil

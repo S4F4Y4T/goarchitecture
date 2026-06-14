@@ -5,6 +5,7 @@ import (
 	"github.com/s4f4y4t/go-microservice/services/catalog/internal/dto"
 	"github.com/s4f4y4t/go-microservice/services/catalog/internal/model"
 	"github.com/s4f4y4t/go-microservice/pkg/pagination"
+	"github.com/s4f4y4t/go-microservice/pkg/query"
 )
 
 type ProductService struct {
@@ -15,8 +16,8 @@ func NewProductService(repo model.ProductRepository) *ProductService {
 	return &ProductService{repo: repo}
 }
 
-func (s *ProductService) GetAllProducts(c context.Context, p pagination.Params) ([]model.Product, int64, error) {
-	return s.repo.GetAllProducts(c, p)
+func (s *ProductService) GetAllProducts(c context.Context, p pagination.Params, opts query.Options) ([]model.Product, int64, error) {
+	return s.repo.GetAllProducts(c, p, opts)
 }
 
 func (s *ProductService) GetProductByID(c context.Context, id int) (*model.Product, error) {

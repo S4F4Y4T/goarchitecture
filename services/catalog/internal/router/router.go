@@ -31,7 +31,7 @@ func Register(handler *bootstrap.App, cfg *config.Config, rdb *redis.Client) htt
 		middleware.RequestID,
 		middleware.Logger,
 		middleware.Cors(cfg.CORS.AllowedOrigins),
-		middleware.RateLimit(rdb, cfg.RateLimit.Requests, cfg.RateLimit.Window),
+		middleware.RateLimit(rdb, "catalog", cfg.RateLimit.Requests, cfg.RateLimit.Window),
 		middleware.PanicRecovery,
 	)(mux)
 }
