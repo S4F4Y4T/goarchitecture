@@ -25,3 +25,5 @@ Design decision docs for this Go microservice project. Each doc covers the **wha
 | Repository | [repository.md](repository.md) | GORM implementation, unique violation handling |
 | Service Layer | [service.md](service.md) | Business logic, pre-checks, orchestration |
 | Handler | [handler.md](handler.md) | HTTP handlers, decoding → validation → service → response |
+| HTTP Server & Graceful Shutdown | [http-server.md](http-server.md) | Timeouts (read/write/idle), MaxHeaderBytes, SIGTERM drain |
+| Docker & Containerization | [docker.md](docker.md) | Dev images, docker-compose, port strategy, health checks |

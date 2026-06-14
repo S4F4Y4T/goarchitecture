@@ -74,6 +74,53 @@ Two queries:
 
 The count query must apply the same filters as the fetch query so that `total` reflects the filtered result set, not all rows.
 
+## Database Connection Pool
+
+GORM wraps `database/sql` under the hood. Pool settings are tuned via `SetupDatabase`:
+
+```go
+sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
+sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
+sqlDB.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+sqlDB.SetConnMaxIdleTime(cfg.ConnMaxIdleTime)
+```
+
+All four values are configurable via env vars with sensible defaults:
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `MaxOpenConns` | 25 | Max simultaneous DB connections. Caps Postgres load — Postgres has a max_connections limit (default 100); exceeding it causes `too many connections` errors. |
+| `MaxIdleConns` | 10 | Connections kept open in the pool when idle. A pool of 10 means bursts of requests don't pay the TCP handshake + auth cost for every query. Set lower than MaxOpenConns. |
+| `ConnMaxLifetime` | 30m | Maximum age of a connection. Forces reconnect after 30 minutes, picking up any credential or network changes without a restart. |
+| `ConnMaxIdleTime` | 5m | Close idle connections after 5 minutes. Reclaims Postgres connection slots when traffic is low. |
+
+**Why not use GORM's default pool?**  
+GORM's default is `MaxOpenConns = 0` (unlimited) and `MaxIdleConns = 2`. Unlimited open connections means a traffic spike can exhaust Postgres's `max_connections`, causing all services to fail. Explicit limits bound the blast radius.
+
+**Startup ping**:
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+sqlDB.PingContext(ctx)
+```
+The database is pinged at startup with a 5-second timeout. If the DB is unreachable, the process exits immediately with a clear error rather than starting and failing on the first request.
+
+## DSN and Credential URL-Encoding
+
+The Postgres DSN is built with `url.QueryEscape` on both the username and password:
+
+```go
+fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+    url.QueryEscape(c.User),
+    url.QueryEscape(c.Password),
+    c.Host, c.Port, c.Name, c.SSLMode,
+)
+```
+
+**Why URL-encode credentials?**  
+Postgres DSNs are URLs. If the password contains `@`, `/`, `?`, or `#`, an unencoded DSN will be parsed incorrectly — the `@` in `p@ssword` would be treated as the user/host separator. `url.QueryEscape` ensures special characters are percent-encoded and the DSN parses correctly regardless of password contents.
+
+This is a common subtle bug: works fine until someone sets a password with a special character.
+
 ## Context Propagation
 
 All repository methods accept `ctx context.Context` and pass it to GORM via `db.WithContext(ctx)`. This enables:
