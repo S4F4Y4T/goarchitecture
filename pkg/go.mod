@@ -1,9 +1,9 @@
 module github.com/s4f4y4t/go-microservice/pkg
 
-go 1.26.3
+go 1.25.0
 
 require (
-	github.com/go-playground/validator/v10 v10.30.2
+	github.com/go-playground/validator/v10 v10.22.1
 	github.com/google/uuid v1.6.0
 	github.com/redis/go-redis/v9 v9.20.1
 	gorm.io/gorm v1.31.1
