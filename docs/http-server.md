@@ -64,17 +64,15 @@ Both signals trigger the same graceful shutdown path.
 
 `Shutdown()` stops accepting new connections and waits for in-flight requests to complete. It does **not** cancel in-flight request contexts — handlers run to completion.
 
-The 1-second context timeout is the maximum time `Shutdown()` is allowed to wait. If in-flight requests don't complete within 1 second, the process exits anyway.
+The 15-second context timeout is the maximum time `Shutdown()` is allowed to wait. If in-flight requests don't complete within 15 seconds, the process exits anyway.
 
-### Why Only 1 Second?
+### Why 15 Seconds?
 
 This service is behind a load balancer or Kubernetes service. The orchestrator:
 1. Removes the pod from the endpoint list (stops sending new traffic) before sending SIGTERM
-2. Waits for the `terminationGracePeriodSeconds` (default 30s in k8s) before force-killing
+2. Waits for `terminationGracePeriodSeconds` (default 30s in k8s) before force-killing
 
-The 1-second Go-level timeout is the time we allow **currently executing handlers** to finish — not the total time the orchestrator waits. For a JSON CRUD API, no handler should take more than a few hundred milliseconds. If a handler is still running after 1 second, it's likely stuck (waiting on a cancelled DB context), and forcing exit is the right call.
-
-**If longer handlers are added** (file uploads, slow exports), increase the graceful shutdown timeout to match the maximum expected handler duration.
+The 15-second Go-level timeout covers the slowest realistic DB query under load (pagination counts on large tables, complex joins), giving in-flight requests a fair chance to complete. It is safely within Kubernetes' 30s window — the OS will never have to force-kill. The previous value of 1 second was too aggressive and would have dropped requests on every rolling deploy.
 
 ## Why `ListenAndServe` in a Goroutine?
 

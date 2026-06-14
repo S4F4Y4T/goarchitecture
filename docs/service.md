@@ -67,4 +67,4 @@ This pattern means the common case (non-concurrent, single user registration) ge
 
 - **No service layer — handler calls repository directly** — works for pure CRUD with no business logic. As soon as logic appears (pre-checks, orchestration across two repos), the handler becomes bloated and hard to test.
 - **Rich domain model (DDD entities with methods)** — `user.ChangeEmail(newEmail)` on the model itself. More expressive for complex domains; overkill for simple CRUD.
-- **Transactional service methods** — wrap multi-step operations (check + insert) in a database transaction. Would eliminate the race condition window on uniqueness checks. Not implemented yet; would be added when needed.
+- **Transactional service methods** — `UpdateUser` and `UpdateProduct` now wrap their multi-step operations (fetch → check → update) in a transaction via `repo.WithTx()`. This eliminates the lost-update race condition window. `WithTx` is defined on the repository interface so it composes with the existing fake/mock pattern in tests.

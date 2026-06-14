@@ -92,3 +92,9 @@ func (r *ProductRepository) DeleteProduct(ctx context.Context, id int) error {
 	}
 	return nil
 }
+
+func (r *ProductRepository) WithTx(ctx context.Context, fn func(model.ProductRepository) error) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(&ProductRepository{db: tx})
+	})
+}

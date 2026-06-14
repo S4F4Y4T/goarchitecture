@@ -101,3 +101,9 @@ func (r *UserRepository) ExistsByEmail(ctx context.Context, email string) (bool,
 	}
 	return count > 0, nil
 }
+
+func (r *UserRepository) WithTx(ctx context.Context, fn func(model.UserRepository) error) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(&UserRepository{db: tx})
+	})
+}

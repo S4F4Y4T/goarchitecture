@@ -34,16 +34,19 @@ func (s *ProductService) CreateProduct(c context.Context, product dto.CreateProd
 }
 
 func (s *ProductService) UpdateProduct(c context.Context, id int, req dto.UpdateProductRequest) (*model.Product, error) {
-	product, err := s.repo.GetProductByID(c, id)
-	if err != nil {
-		return nil, err
-	}
-
-	product.Name = req.Name
-	product.Description = req.Description
-	product.Price = req.Price
-
-	return s.repo.UpdateProduct(c, id, product)
+	var updated *model.Product
+	err := s.repo.WithTx(c, func(tx model.ProductRepository) error {
+		product, err := tx.GetProductByID(c, id)
+		if err != nil {
+			return err
+		}
+		product.Name = req.Name
+		product.Description = req.Description
+		product.Price = req.Price
+		updated, err = tx.UpdateProduct(c, id, product)
+		return err
+	})
+	return updated, err
 }
 
 func (s *ProductService) DeleteProduct(c context.Context, id int) error {

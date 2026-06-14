@@ -33,6 +33,9 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, user *User) (*User, error)
 	UpdateUser(ctx context.Context, id int, user *User) (*User, error)
 	DeleteUser(ctx context.Context, id int) error
-
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
+
+	// WithTx runs fn inside a single database transaction. The repo passed to fn
+	// shares the same transaction so all operations are atomic.
+	WithTx(ctx context.Context, fn func(repo UserRepository) error) error
 }

@@ -1,0 +1,6 @@
+ALTER TABLE products
+    ALTER COLUMN id TYPE INT,
+    ALTER COLUMN created_at TYPE TIMESTAMP USING created_at AT TIME ZONE 'UTC',
+    ALTER COLUMN updated_at TYPE TIMESTAMP USING updated_at AT TIME ZONE 'UTC';
+
+ALTER SEQUENCE products_id_seq AS INT;

@@ -32,4 +32,8 @@ type ProductRepository interface {
 	CreateProduct(ctx context.Context, product *Product) (*Product, error)
 	UpdateProduct(ctx context.Context, id int, product *Product) (*Product, error)
 	DeleteProduct(ctx context.Context, id int) error
+
+	// WithTx runs fn inside a single database transaction. The repo passed to fn
+	// shares the same transaction so all operations are atomic.
+	WithTx(ctx context.Context, fn func(repo ProductRepository) error) error
 }

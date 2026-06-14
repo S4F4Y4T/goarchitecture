@@ -40,26 +40,27 @@ func (s *UserService) CreateUser(c context.Context, user *model.User) (*model.Us
 }
 
 func (s *UserService) UpdateUser(c context.Context, id int, req dto.UpdateUserRequest) (*model.User, error) {
-
-	user, err := s.repo.GetUserByID(c, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if req.Email != user.Email {
-		exists, err := s.repo.ExistsByEmail(c, req.Email)
+	var updated *model.User
+	err := s.repo.WithTx(c, func(tx model.UserRepository) error {
+		user, err := tx.GetUserByID(c, id)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		if exists {
-			return nil, apperror.Conflict("email already exists")
+		if req.Email != user.Email {
+			exists, err := tx.ExistsByEmail(c, req.Email)
+			if err != nil {
+				return err
+			}
+			if exists {
+				return apperror.Conflict("email already exists")
+			}
 		}
-	}
-
-	user.Name = req.Name
-	user.Email = req.Email
-
-	return s.repo.UpdateUser(c, id, user)
+		user.Name = req.Name
+		user.Email = req.Email
+		updated, err = tx.UpdateUser(c, id, user)
+		return err
+	})
+	return updated, err
 }
 
 func (s *UserService) DeleteUser(c context.Context, id int) error {
