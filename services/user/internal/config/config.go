@@ -45,12 +45,18 @@ type RateLimitConfig struct {
 	Window   time.Duration
 }
 
+type JWTConfig struct {
+	Secret string
+	Expiry time.Duration
+}
+
 type Config struct {
 	Port      int
 	DB        DBConfig
 	CORS      CORSConfig
 	Redis     *RedisConfig // nil when REDIS_ADDR is unset; rate limiting is disabled
 	RateLimit RateLimitConfig
+	JWT       JWTConfig
 }
 
 func LoadConfig() (*Config, error) {
@@ -68,12 +74,18 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
+	jwt, err := loadJWTConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		Port:      portInt,
 		DB:        db,
 		CORS:      loadCORSConfig(),
 		Redis:     loadRedisConfig(),
 		RateLimit: loadRateLimitConfig(),
+		JWT:       jwt,
 	}, nil
 }
 
@@ -156,4 +168,15 @@ func loadRateLimitConfig() RateLimitConfig {
 		Requests: pkgconfig.GetEnvInt("RATE_LIMIT_REQUESTS", 100),
 		Window:   pkgconfig.GetEnvDuration("RATE_LIMIT_WINDOW", time.Minute),
 	}
+}
+
+func loadJWTConfig() (JWTConfig, error) {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return JWTConfig{}, fmt.Errorf("JWT_SECRET is required")
+	}
+	return JWTConfig{
+		Secret: secret,
+		Expiry: pkgconfig.GetEnvDuration("JWT_EXPIRY", 24*time.Hour),
+	}, nil
 }
