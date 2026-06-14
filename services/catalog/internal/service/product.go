@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"microservice/services/user/internal/dto"
-	"microservice/services/user/internal/model"
+	"microservice/services/catalog/internal/dto"
+	"microservice/services/catalog/internal/model"
 	"microservice/pkg/pagination"
 )
 
@@ -29,12 +29,10 @@ func (s *ProductService) CreateProduct(c context.Context, product dto.CreateProd
 		Description: product.Description,
 		Price:       product.Price,
 	}
-
 	return s.repo.CreateProduct(c, p)
 }
 
 func (s *ProductService) UpdateProduct(c context.Context, id int, req dto.UpdateProductRequest) (*model.Product, error) {
-
 	product, err := s.repo.GetProductByID(c, id)
 	if err != nil {
 		return nil, err

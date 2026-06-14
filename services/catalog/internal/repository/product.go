@@ -3,22 +3,26 @@ package repository
 import (
 	"context"
 	"errors"
-	"microservice/services/user/internal/model"
+	"microservice/services/catalog/internal/model"
 	"microservice/pkg/apperror"
 	"microservice/pkg/pagination"
 	"strconv"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
 
 type ProductRepository struct {
 	db *gorm.DB
 }
 
 func NewProductRepository(db *gorm.DB) model.ProductRepository {
-	return &ProductRepository{
-		db: db,
-	}
+	return &ProductRepository{db: db}
 }
 
 func (r *ProductRepository) GetAllProducts(ctx context.Context, p pagination.Params) ([]model.Product, int64, error) {

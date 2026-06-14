@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"microservice/services/user/internal/dto"
-	"microservice/services/user/internal/service"
+	"microservice/services/catalog/internal/dto"
+	"microservice/services/catalog/internal/service"
 	"microservice/pkg/apperror"
 	"microservice/pkg/logger"
 	"microservice/pkg/pagination"
@@ -22,7 +22,6 @@ func NewProductHandler(service *service.ProductService) *ProductHandler {
 }
 
 func (h *ProductHandler) GetAllProducts(w http.ResponseWriter, r *http.Request) {
-
 	queryParams := r.URL.Query()
 
 	page, _ := strconv.Atoi(queryParams.Get("page"))
@@ -77,8 +76,7 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	uid, err := strconv.Atoi(id)
+	uid, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		response.Error(w, r, apperror.InvalidInput("invalid product id"))
 		return
@@ -105,8 +103,7 @@ func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProductHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	uid, err := strconv.Atoi(id)
+	uid, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		response.Error(w, r, apperror.InvalidInput("invalid product id"))
 		return

@@ -1,9 +1,9 @@
 package router
 
 import (
-	"microservice/services/user/internal/bootstrap"
-	"microservice/services/user/internal/config"
-	"microservice/docs/user"
+	"microservice/services/catalog/internal/bootstrap"
+	"microservice/services/catalog/internal/config"
+	"microservice/docs/catalog"
 	"microservice/pkg/middleware"
 	"net/http"
 
@@ -15,7 +15,7 @@ func Register(handler *bootstrap.App, cfg *config.Config, rdb *redis.Client) htt
 	mux := http.NewServeMux()
 
 	v1 := http.NewServeMux()
-	RegisterUsersRoute(v1, handler.UserHandler)
+	RegisterProductRoutes(v1, handler.ProductHandler)
 	mux.Handle("/v1/", http.StripPrefix("/v1", v1))
 
 	mux.HandleFunc("GET /healthz", handler.HealthHandler.Live)
