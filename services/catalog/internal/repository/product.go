@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"errors"
-	"microservice/services/catalog/internal/model"
-	"microservice/pkg/apperror"
-	"microservice/pkg/pagination"
+	"github.com/s4f4y4t/go-microservice/services/catalog/internal/model"
+	"github.com/s4f4y4t/go-microservice/pkg/apperror"
+	"github.com/s4f4y4t/go-microservice/pkg/pagination"
 	"strconv"
 
 	"github.com/jackc/pgx/v5/pgconn"

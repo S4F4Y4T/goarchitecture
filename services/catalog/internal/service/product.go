@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
-	"microservice/services/catalog/internal/dto"
-	"microservice/services/catalog/internal/model"
-	"microservice/pkg/pagination"
+	"github.com/s4f4y4t/go-microservice/services/catalog/internal/dto"
+	"github.com/s4f4y4t/go-microservice/services/catalog/internal/model"
+	"github.com/s4f4y4t/go-microservice/pkg/pagination"
 )
 
 type ProductService struct {

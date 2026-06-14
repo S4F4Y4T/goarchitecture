@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	pkgconfig "microservice/pkg/config"
+	pkgconfig "github.com/s4f4y4t/go-microservice/pkg/config"
 
 	"github.com/joho/godotenv"
 )

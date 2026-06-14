@@ -2,11 +2,11 @@ package service
 
 import (
 	"context"
-	"microservice/services/user/internal/dto"
-	"microservice/services/user/internal/model"
-	"microservice/pkg/apperror"
-	"microservice/pkg/pagination"
-	"microservice/pkg/query"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/dto"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/model"
+	"github.com/s4f4y4t/go-microservice/pkg/apperror"
+	"github.com/s4f4y4t/go-microservice/pkg/pagination"
+	"github.com/s4f4y4t/go-microservice/pkg/query"
 )
 
 type UserService struct {

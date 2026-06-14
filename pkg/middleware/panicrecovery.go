@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"microservice/pkg/apperror"
-	"microservice/pkg/logger"
-	"microservice/pkg/response"
+	"github.com/s4f4y4t/go-microservice/pkg/apperror"
+	"github.com/s4f4y4t/go-microservice/pkg/logger"
+	"github.com/s4f4y4t/go-microservice/pkg/response"
 )
 
 func PanicRecovery(next http.Handler) http.Handler {

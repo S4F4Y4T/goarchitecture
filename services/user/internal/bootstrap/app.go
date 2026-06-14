@@ -1,9 +1,9 @@
 package bootstrap
 
 import (
-	"microservice/services/user/internal/handler"
-	"microservice/services/user/internal/repository"
-	"microservice/services/user/internal/service"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/handler"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/repository"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/service"
 
 	"gorm.io/gorm"
 )

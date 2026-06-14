@@ -4,7 +4,7 @@
 package gorm
 
 import (
-	"microservice/pkg/query"
+	"github.com/s4f4y4t/go-microservice/pkg/query"
 
 	"gorm.io/gorm"
 )

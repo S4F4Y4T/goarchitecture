@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"microservice/pkg/logger"
+	"github.com/s4f4y4t/go-microservice/pkg/logger"
 )
 
 // statusRecorder wraps http.ResponseWriter to capture the status code written

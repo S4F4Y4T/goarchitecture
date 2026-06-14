@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"microservice/pkg/apperror"
-	"microservice/pkg/logger"
+	"github.com/s4f4y4t/go-microservice/pkg/apperror"
+	"github.com/s4f4y4t/go-microservice/pkg/logger"
 )
 
 type ErrorBody struct {

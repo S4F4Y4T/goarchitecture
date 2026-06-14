@@ -3,11 +3,11 @@ package repository
 import (
 	"context"
 	"errors"
-	"microservice/services/user/internal/model"
-	"microservice/pkg/apperror"
-	gormquery "microservice/pkg/query/gorm"
-	"microservice/pkg/pagination"
-	"microservice/pkg/query"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/model"
+	"github.com/s4f4y4t/go-microservice/pkg/apperror"
+	gormquery "github.com/s4f4y4t/go-microservice/pkg/query/gorm"
+	"github.com/s4f4y4t/go-microservice/pkg/pagination"
+	"github.com/s4f4y4t/go-microservice/pkg/query"
 	"strconv"
 
 	"github.com/jackc/pgx/v5/pgconn"

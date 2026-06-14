@@ -3,8 +3,8 @@ package middleware
 import (
 	"context"
 	"log/slog"
-	"microservice/pkg/apperror"
-	"microservice/pkg/response"
+	"github.com/s4f4y4t/go-microservice/pkg/apperror"
+	"github.com/s4f4y4t/go-microservice/pkg/response"
 	"net"
 	"net/http"
 	"strconv"

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"microservice/pkg/response"
+	"github.com/s4f4y4t/go-microservice/pkg/response"
 
 	"gorm.io/gorm"
 )

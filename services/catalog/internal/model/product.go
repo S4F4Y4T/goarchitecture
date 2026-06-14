@@ -2,7 +2,7 @@ package model
 
 import (
 	"context"
-	"microservice/pkg/pagination"
+	"github.com/s4f4y4t/go-microservice/pkg/pagination"
 )
 
 type Product struct {

@@ -1,7 +1,7 @@
 package router
 
 import (
-	"microservice/services/user/internal/handler"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/handler"
 	"net/http"
 )
 

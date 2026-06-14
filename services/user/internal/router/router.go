@@ -1,10 +1,10 @@
 package router
 
 import (
-	"microservice/services/user/internal/bootstrap"
-	"microservice/services/user/internal/config"
-	"microservice/docs/user"
-	"microservice/pkg/middleware"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/bootstrap"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/config"
+	"github.com/s4f4y4t/go-microservice/services/user/docs"
+	"github.com/s4f4y4t/go-microservice/pkg/middleware"
 	"net/http"
 
 	"github.com/redis/go-redis/v9"

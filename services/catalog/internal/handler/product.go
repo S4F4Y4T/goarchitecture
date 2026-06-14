@@ -1,14 +1,14 @@
 package handler
 
 import (
-	"microservice/services/catalog/internal/dto"
-	"microservice/services/catalog/internal/service"
-	"microservice/pkg/apperror"
-	"microservice/pkg/logger"
-	"microservice/pkg/pagination"
-	"microservice/pkg/request"
-	"microservice/pkg/response"
-	"microservice/pkg/validation"
+	"github.com/s4f4y4t/go-microservice/services/catalog/internal/dto"
+	"github.com/s4f4y4t/go-microservice/services/catalog/internal/service"
+	"github.com/s4f4y4t/go-microservice/pkg/apperror"
+	"github.com/s4f4y4t/go-microservice/pkg/logger"
+	"github.com/s4f4y4t/go-microservice/pkg/pagination"
+	"github.com/s4f4y4t/go-microservice/pkg/request"
+	"github.com/s4f4y4t/go-microservice/pkg/response"
+	"github.com/s4f4y4t/go-microservice/pkg/validation"
 	"net/http"
 	"strconv"
 )

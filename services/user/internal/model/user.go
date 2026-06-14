@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"microservice/pkg/pagination"
-	"microservice/pkg/query"
+	"github.com/s4f4y4t/go-microservice/pkg/pagination"
+	"github.com/s4f4y4t/go-microservice/pkg/query"
 )
 
 type User struct {
