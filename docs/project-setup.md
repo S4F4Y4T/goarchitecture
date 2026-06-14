@@ -1,0 +1,90 @@
+# Project Setup & Start
+
+## What We Built
+
+A `makefile` as the single entry point for every development and operational task. Air handles hot-reload during development. Environment variables (`.env`) drive all runtime config.
+
+## Makefile Design
+
+The `makefile` exposes a `SVC` variable (default: `user`) so the same targets work for every service:
+
+```bash
+make run SVC=user        # go run the user service
+make dev SVC=catalog     # hot-reload the catalog service with air
+make build SVC=user      # compile binary → ./bin/user
+make migrate-up SVC=user # apply pending DB migrations
+make migrate-create SVC=user name=add_phone  # scaffold new migration pair
+make tidy                # go mod tidy across all three modules
+make test                # run all tests
+make lint                # run golangci-lint
+make clean               # remove bin/ and tmp/
+```
+
+**Why a Makefile?**  
+Go projects don't have a universal `npm run dev` equivalent. A Makefile gives every developer (and CI) one documented interface regardless of their shell or IDE. Targets are short, readable, and composable.
+
+**Alternatives considered:**
+- **Task / Taskfile** — YAML-based, cross-platform. Rejected: adds a binary dependency; Makefile is universally available on Linux/macOS without install.
+- **Shell scripts in `scripts/`** — already used for migration wrapping, but a Makefile aggregates all scripts under one roof with tab-completion.
+- **Mage** — Go-native build tool. Rejected: too heavy for this stage; requires Go to compile the build tool itself.
+
+## Air (Hot Reload)
+
+Air watches for file changes and rebuilds/restarts the service automatically during development.
+
+Each service has its own `.air.toml`:
+- Watches the workspace root (`root = "../.."`) so changes to `pkg/` trigger a rebuild of the service.
+- Rebuilds into `./bin/<service>`.
+- Excludes test files, `vendor/`, `tmp/`, `bin/`.
+
+**Why Air?**
+- The most widely used live-reload tool in the Go ecosystem.
+- Supports workspace-level watching — critical here because `pkg/` changes must also trigger rebuilds.
+- Integrates cleanly with Docker (services run `air` in their container).
+
+**Alternatives:**
+- **`go run` with entr/watchexec** — filesystem watchers piped to `go run`. Works but requires extra tooling and produces less useful output.
+- **Manual restart** — viable for small changes, but painful for inner-loop development.
+- **Reflex** — similar to air. Less maintained, smaller community.
+
+## Environment Configuration
+
+All config is read from environment variables. `godotenv` loads a `.env` file at startup (best-effort: if the file is missing, env vars from the shell are used). Each service has its own prefixed vars in the root `.env`:
+
+```
+USER_PORT=6969
+USER_DB_HOST=localhost
+CATALOG_PORT=7070
+REDIS_ADDR=localhost:6380
+```
+
+**Why env vars?**
+- 12-factor app compliance: config is injected, not embedded.
+- Works identically in Docker Compose (environment section), Kubernetes (ConfigMap/Secret), and local shell.
+- `.env.example` in version control documents every variable without leaking secrets.
+
+**Why not YAML/TOML config files?**
+- Env vars are simpler to inject in containers — no need to mount config files or template them.
+- Secrets (DB passwords, Redis passwords) are always env vars anyway; mixing sources increases complexity.
+
+## Startup Flow
+
+```
+main() →
+  1. Init logger (structured JSON, level from LOG_LEVEL env)
+  2. LoadConfig() — read env vars, validate required fields
+  3. SetupDatabase() — open GORM connection, tune pool, ping (5s timeout)
+  4. SetupRedis() — connect if REDIS_ADDR set; nil if absent
+  5. Bootstrap() — wire repo → service → handler
+  6. NewRouter() — register routes + middleware chain
+  7. http.Server{} — with timeouts (Read 10s, Write 10s, Idle 60s)
+  8. ListenAndServe in goroutine
+  9. Wait for SIGINT/SIGTERM
+  10. Graceful shutdown (1s drain timeout)
+```
+
+**Why validate config at startup?**  
+Fail fast. A missing `DB_PASSWORD` should be a startup panic with a clear message, not a nil-pointer crash at the first request.
+
+**Why graceful shutdown?**  
+In-flight requests (especially long DB queries) should complete before the process exits. The 1-second timeout is a short window sufficient for health-check-based load balancers to drain traffic before the OS reclaims the port.
