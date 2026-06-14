@@ -1,11 +1,12 @@
 package router
 
 import (
+	"net/http"
+
+	"github.com/s4f4y4t/go-microservice/pkg/middleware"
+	"github.com/s4f4y4t/go-microservice/services/user/docs"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/bootstrap"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/config"
-	"github.com/s4f4y4t/go-microservice/services/user/docs"
-	"github.com/s4f4y4t/go-microservice/pkg/middleware"
-	"net/http"
 
 	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -16,6 +17,8 @@ func Register(handler *bootstrap.App, cfg *config.Config, rdb *redis.Client) htt
 
 	v1 := http.NewServeMux()
 	RegisterUsersRoute(v1, handler.UserHandler)
+	RegisterAuthRoute(v1, handler.AuthHandler)
+
 	mux.Handle("/v1/", http.StripPrefix("/v1", v1))
 
 	mux.HandleFunc("GET /healthz", handler.HealthHandler.Live)

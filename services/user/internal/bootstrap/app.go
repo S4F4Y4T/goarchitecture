@@ -10,6 +10,7 @@ import (
 
 type App struct {
 	UserHandler   *handler.UserHandler
+	AuthHandler   *handler.AuthHandler
 	HealthHandler *handler.HealthHandler
 }
 
@@ -18,8 +19,11 @@ func Register(db *gorm.DB) *App {
 	uservice := service.NewUserService(urepo)
 	uhandler := handler.NewUserHandler(uservice)
 
+	ahandler := handler.NewAuthHandler(uservice)
+
 	return &App{
 		UserHandler:   uhandler,
+		AuthHandler:   ahandler,
 		HealthHandler: handler.NewHealthHandler(db),
 	}
 }

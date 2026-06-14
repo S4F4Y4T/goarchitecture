@@ -12,6 +12,7 @@ type User struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
+	Password  string    `json:"-"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -34,6 +35,7 @@ type UserRepository interface {
 	UpdateUser(ctx context.Context, id int, user *User) (*User, error)
 	DeleteUser(ctx context.Context, id int) error
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
+	GetByEmail(ctx context.Context, email string) (*User, error)
 
 	// WithTx runs fn inside a single database transaction. The repo passed to fn
 	// shares the same transaction so all operations are atomic.

@@ -3,12 +3,13 @@ package repository
 import (
 	"context"
 	"errors"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/model"
+	"strconv"
+
 	"github.com/s4f4y4t/go-microservice/pkg/apperror"
-	gormquery "github.com/s4f4y4t/go-microservice/pkg/query/gorm"
 	"github.com/s4f4y4t/go-microservice/pkg/pagination"
 	"github.com/s4f4y4t/go-microservice/pkg/query"
-	"strconv"
+	gormquery "github.com/s4f4y4t/go-microservice/pkg/query/gorm"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/model"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
@@ -106,4 +107,15 @@ func (r *UserRepository) WithTx(ctx context.Context, fn func(model.UserRepositor
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return fn(&UserRepository{db: tx})
 	})
+}
+
+func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.User, error) {
+	var user model.User
+	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperror.NotFound("user not found")
+		}
+		return nil, apperror.Internal(err)
+	}
+	return &user, nil
 }
