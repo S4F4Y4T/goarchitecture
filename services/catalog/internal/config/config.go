@@ -55,19 +55,12 @@ type Config struct {
 
 func LoadConfig() (*Config, error) {
 
-	err := godotenv.Load()
-	if err != nil {
-		slog.Error("loading .env file", "error", err)
-		os.Exit(1)
-	}
+	// best-effort — in Docker env vars come from the container environment
+	_ = godotenv.Load()
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		return nil, fmt.Errorf("PORT is missing")
-	}
 	portInt := pkgconfig.GetEnvInt("PORT", 0)
 	if portInt == 0 {
-		return nil, fmt.Errorf("invalid PORT")
+		return nil, fmt.Errorf("PORT is missing or invalid")
 	}
 
 	db, err := loadDBConfig()

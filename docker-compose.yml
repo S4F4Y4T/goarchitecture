@@ -1,52 +1,88 @@
 services:
-  app:
+  # ── User service ────────────────────────────────────────────────────────────
+  user_app:
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.user
-    container_name: microservice_app
+    container_name: user_app
     ports:
       - "6969:6969"
     volumes:
       - .:/app
       - go_cache:/root/go/pkg/mod
+    env_file:
+      - services/user/.env
     environment:
-      PORT: "6969"
-      DB_HOST: postgres
-      DB_PORT: "5432"
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: rest_db
-      DB_SSLMODE: disable
+      DB_HOST: user_postgres
       REDIS_ADDR: "redis:6379"
-      RATE_LIMIT_REQUESTS: "100"
-      RATE_LIMIT_WINDOW: "1m"
     depends_on:
-      postgres:
+      user_postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
 
-  postgres:
+  user_postgres:
     image: postgres:17-alpine
-    container_name: microservice_db
+    container_name: user_postgres
     environment:
-      POSTGRES_USER: "${DB_USER:-postgres}"
-      POSTGRES_PASSWORD: "${DB_PASSWORD:-postgres}"
-      POSTGRES_DB: "${DB_NAME:-rest_db}"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: user_db
     ports:
       - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - user_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d rest_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d user_db"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # ── Catalog service ─────────────────────────────────────────────────────────
+  catalog_app:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.catalog
+    container_name: catalog_app
+    ports:
+      - "7070:7070"
+    volumes:
+      - .:/app
+      - go_cache:/root/go/pkg/mod
+    env_file:
+      - services/catalog/.env
+    environment:
+      DB_HOST: catalog_postgres
+      REDIS_ADDR: "redis:6379"
+    depends_on:
+      catalog_postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  catalog_postgres:
+    image: postgres:17-alpine
+    container_name: catalog_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: catalog_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - catalog_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d catalog_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Shared infrastructure ───────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: microservice_redis
+    container_name: redis
     ports:
       - "6380:6379"
     volumes:
@@ -60,7 +96,7 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: microservice_pgadmin
+    container_name: pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
@@ -69,11 +105,13 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
-      - postgres
+      - user_postgres
+      - catalog_postgres
     restart: unless-stopped
 
 volumes:
-  postgres_data:
-  go_cache:
-  pgadmin_data:
+  user_postgres_data:
+  catalog_postgres_data:
   redis_data:
+  pgadmin_data:
+  go_cache:

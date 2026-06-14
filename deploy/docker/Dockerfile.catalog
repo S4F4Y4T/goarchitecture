@@ -9,4 +9,4 @@ RUN go install github.com/air-verse/air@latest
 COPY go.mod ./
 RUN go mod download
 
-CMD ["air"]
+CMD ["air", "-c", "services/catalog/.air.toml"]
