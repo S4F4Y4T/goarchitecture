@@ -121,6 +121,16 @@ Postgres DSNs are URLs. If the password contains `@`, `/`, `?`, or `#`, an unenc
 
 This is a common subtle bug: works fine until someone sets a password with a special character.
 
+## SSL Mode
+
+`DB_SSLMODE` defaults to `"disable"`. This is intentional for local development and Docker Compose (where the DB is on a private network with no exposure). In production, it must be changed to `"require"` or `"verify-full"`.
+
+The default is `"disable"` rather than `"require"` because:
+- Docker Compose Postgres containers don't ship with TLS certs configured by default — requiring SSL would break `docker compose up` out of the box.
+- A wrong default that breaks local setup is worse than a default that requires a deliberate production override.
+
+**Production checklist**: set `DB_SSLMODE=require` (or `verify-full` with a CA cert) in any environment where the DB connection crosses a network boundary.
+
 ## Context Propagation
 
 All repository methods accept `ctx context.Context` and pass it to GORM via `db.WithContext(ctx)`. This enables:

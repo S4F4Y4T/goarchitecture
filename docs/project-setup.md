@@ -67,6 +67,9 @@ REDIS_ADDR=localhost:6380
 - Env vars are simpler to inject in containers — no need to mount config files or template them.
 - Secrets (DB passwords, Redis passwords) are always env vars anyway; mixing sources increases complexity.
 
+**Env var parsing: fail-graceful for optional values, fail-fast for required ones.**  
+`pkg/config/env.go` provides `GetEnvInt(key, default)` and `GetEnvDuration(key, default)`. If the value is set but cannot be parsed (e.g., `RATE_LIMIT_REQUESTS=abc`), they log a warning and fall back to the default rather than crashing. This is intentional for optional tuning values — a misconfigured pool size or rate-limit window should not take down the service. Required values (`PORT`, `DB_HOST`, etc.) are validated in `LoadConfig()` with a hard error and `os.Exit(1)` on startup.
+
 ## Startup Flow
 
 ```
