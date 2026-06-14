@@ -279,13 +279,60 @@ Key variables per service (using `USER_` prefix as example):
 
 ### Planned
 
-- [ ] Authentication & authorization — JWT access/refresh tokens, bcrypt passwords, RBAC
-- [ ] API gateway — single public entry point, JWT verification, identity header propagation
-- [ ] `PATCH` endpoints — partial updates alongside existing `PUT`
-- [ ] `ReadHeaderTimeout` on HTTP server — Slowloris defense
-- [ ] Optimistic concurrency — `ETag` / `If-Match` or `version` column on updates
-- [ ] Soft delete — `deleted_at` column for recoverability
-- [ ] Metrics — `/metrics` Prometheus endpoint with request duration histograms
-- [ ] Tests — handler integration tests + service unit tests with repository fakes
-- [ ] K8s manifests — Deployment, Service, Ingress, liveness/readiness probe wiring
-- [ ] Production Dockerfile — multi-stage, distroless/scratch final image, non-root user
+#### Security
+- [ ] **Authentication** — JWT access token (15 min) + refresh token (7 days); `pkg/token` with `golang-jwt/jwt/v5`; pin signing method to prevent `alg:none` attack
+- [ ] **Password hashing** — `bcrypt` (or `argon2id`); store only `password_hash`; `json:"-"` tag so it never serializes; generic "invalid credentials" message on failure (prevents user enumeration)
+- [ ] **RBAC** — `role` column on users (`user` | `admin`); `RequireRole` middleware; seeded admin via migration
+- [ ] **`ReadHeaderTimeout`** — add to `http.Server` to defend against Slowloris attacks (currently only `ReadTimeout` is set)
+- [ ] **Security headers** — `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Strict-Transport-Security` (HSTS behind TLS)
+- [ ] **CORS tightened** — lock `CORS_ALLOWED_ORIGINS` default to empty (deny all) instead of `*`; require explicit opt-in in production
+- [ ] **Audit logging** — structured log entries for auth events (login success/failure with `request_id`, never including the password)
+- [ ] **Dependency scanning** — `govulncheck` in CI; Dependabot or Renovate for automated dep updates
+
+#### API Gateway
+- [ ] **Gateway service** — `services/gateway/` (or `cmd/gateway/`); single public entry point on port 8080; all other services on a private Docker network with no published ports
+- [ ] **JWT verification at the edge** — gateway verifies `Authorization: Bearer <token>` once; 401 before traffic reaches services
+- [ ] **Identity header injection** — gateway strips inbound `X-User-*` headers (spoofing defense), then injects `X-User-ID`, `X-User-Email`, `X-User-Role` from verified claims; services trust these over the private network
+- [ ] **`pkg/identity`** — small middleware + context helper: `identity.FromContext(ctx) → (Identity, bool)`; used by services to read injected identity
+- [ ] **Gateway readyz fan-out** — `/readyz` on the gateway pings each upstream's `/readyz` and aggregates results
+- [ ] **Proxy resilience** — `Transport.ResponseHeaderTimeout` so a slow/dead upstream doesn't hold connections; `ErrorHandler` returns JSON 502/504 instead of default HTML
+
+#### API & Data
+- [ ] **`PATCH` endpoints** — partial updates alongside existing `PUT` (full replacement); clients can update a single field without re-sending the whole resource
+- [ ] **`Price` as integer cents** — change `Product.Price` from `float64` to `int64` (store cents, e.g. `999` = $9.99); update migration column from `DECIMAL` to `BIGINT`; float64 causes rounding errors on monetary arithmetic
+- [ ] **User and Product IDs as `int64`** — current `int` type truncates on 32-bit builds; `BIGSERIAL` / `SERIAL` map to 64-bit in Go
+- [ ] **Optimistic concurrency** — `ETag` / `If-Match` header pair, or a `version INTEGER` column incremented on every update; prevents lost-update race conditions
+- [ ] **Soft delete** — `deleted_at TIMESTAMPTZ` column; GORM `DeletedAt` field; hard deletes replaced with a `WHERE deleted_at IS NULL` filter; allows data recovery
+- [ ] **Fix migration gap** — user migrations jump from `000001` to `000003`; a future `000002` will not auto-apply because `000003` is already recorded; renumber or insert a no-op `000002`
+- [ ] **Fix OpenAPI specs** — split the single shared YAML into two: user spec lists only `/v1/users/*` paths; catalog spec lists only `/v1/products/*` paths; fix catalog server URL (`6969` → `7070`); add `created_at`/`updated_at` to both schemas; document `sort`/`filter` params on catalog list endpoint; correct DELETE response from `200` to `204`
+
+#### Observability
+- [ ] **Service label in logs** — `logger.Init` should attach `slog.With("service", "user")` so logs from multiple services are filterable when aggregated
+- [ ] **Metrics** — `/metrics` Prometheus endpoint; request count + latency histograms per route and status code; DB connection pool gauges; rate-limit rejection counter
+- [ ] **Distributed tracing** — OpenTelemetry: gateway starts a root span, `traceparent` header propagates to services, services create child spans; export to Jaeger or Tempo
+
+#### Resilience
+- [ ] **Graceful shutdown timeout** — raise from `1s` to `10–15s`; 1 second cuts in-flight requests under load; Kubernetes allows up to 30s before force-kill
+- [ ] **Circuit breaker** — `sony/gobreaker` on gateway → service calls; fail fast and return 503 when an upstream is down instead of queuing goroutines
+- [ ] **Sliding-window rate limit** — replace the current fixed-window algorithm; fixed-window allows `2×N` requests in `2×1ms` at the window boundary; sliding window eliminates the burst
+
+#### Testing
+- [ ] **`pkg/` unit tests** — `pkg/query.Parse` (unknown fields dropped, sort direction), `pkg/pagination` (clamping), `pkg/apperror` (HTTP status mapping)
+- [ ] **Service unit tests** — fake the repository interface (already defined in `model/`) to test business rules without a DB; e.g., create with duplicate email → Conflict
+- [ ] **Handler tests** — `httptest.NewRecorder` against the real router; assert status codes, envelope shape, field-level validation errors
+- [ ] **Repository integration tests** — `testcontainers-go` spins a real Postgres; build tag `//go:build integration`
+- [ ] **E2E smoke test** — `docker compose up` → register → login → create product with token → assert 401 without token
+
+#### Infrastructure
+- [ ] **Production Dockerfile** — multi-stage: build in `golang:1.25` → final in `gcr.io/distroless/static`; `CGO_ENABLED=0`; non-root user; single static binary; one `Dockerfile` with `ARG SERVICE`
+- [ ] **Network segmentation in Compose** — `edge` network (gateway only, published port) + `backend` network (services + DBs, internal); services have no `ports:` exposed
+- [ ] **Migration job in Compose** — one-shot `migrate/migrate` container per service; app service `depends_on: condition: service_completed_successfully` instead of manual `make migrate-up`
+- [ ] **K8s manifests** — Deployment + Service + Ingress per service; liveness/readiness probes wired to `/healthz`/`/readyz`; HorizontalPodAutoscaler; ConfigMap/Secret for env
+- [ ] **`pgadmin` behind a Compose profile** — move pgadmin to a `tools` profile (`docker compose --profile tools up`) so it doesn't start on every `docker compose up`
+
+#### Inter-service Communication
+- [ ] **gRPC for east-west traffic** — service-to-service calls (e.g. catalog fetching user details) use gRPC instead of REST; strongly typed contracts via protobuf; faster than JSON over HTTP; `buf` for schema management and linting; REST stays north-south (client ↔ gateway)
+- [ ] **RabbitMQ / NATS for async events** — decouple services via a message broker; e.g. `UserDeleted` event published by user-service, consumed by catalog-service to clean up owned products; services no longer need to call each other synchronously for side effects
+- [ ] **Outbox pattern** — guarantee events are published even if the broker is temporarily down; write the event to an `outbox` DB table in the same transaction as the business write, then a relay process publishes and deletes it; prevents dual-write inconsistency
+- [ ] **Transactional email** — dedicated email service (or `pkg/mailer`) backed by SMTP / SendGrid / AWS SES; triggered by domain events (welcome email on register, password-reset link, order confirmation); never call the mail provider synchronously in the request path — publish a job to a queue and send in the background so a slow/failing mail provider doesn't degrade the API
+- [ ] **Background job queue** — Redis-backed worker queue (e.g. `asynq`) or broker-backed (RabbitMQ); handles tasks that must not block HTTP responses: sending emails, generating reports, resizing images, expiring stale records; each service registers its own workers; jobs are retried with exponential backoff on failure; dead-letter queue for permanently failed jobs
