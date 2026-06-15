@@ -49,14 +49,20 @@ Each service has its own `.air.toml`:
 
 ## Environment Configuration
 
-All config is read from environment variables. `godotenv` loads a `.env` file at startup (best-effort: if the file is missing, env vars from the shell are used). Each service has its own prefixed vars in the root `.env`:
+All config is read from environment variables. `godotenv` loads a `.env` file at startup (best-effort: if the file is missing, env vars from the shell are used). All variables for every service and shared infrastructure live in the single root `.env` (docker-compose reads it directly). Variables are prefixed per service to avoid collisions:
 
 ```
-USER_PORT=6969
-USER_DB_HOST=localhost
-CATALOG_PORT=7070
-REDIS_ADDR=localhost:6380
+USER_APP_PORT=6969
+USER_DB_PASSWORD=<change-me>
+CATALOG_APP_PORT=7070
+CATALOG_DB_PASSWORD=<change-me>
+REDIS_PORT=6380
+REDIS_PASSWORD=<change-me>
+JWT_PRIVATE_KEY_PATH=/app/deploy/kong/jwt.key
+COOKIE_SECURE=true
 ```
+
+Copy `.env.example` to `.env` and fill in every `<change-me>` before running `docker compose up`. The docker-compose `environment:` blocks translate prefixed root vars into the unprefixed names the service processes actually read (e.g. `DB_PASSWORD: ${USER_DB_PASSWORD}`).
 
 **Why env vars?**
 - 12-factor app compliance: config is injected, not embedded.

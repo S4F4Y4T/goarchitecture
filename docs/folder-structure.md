@@ -9,9 +9,12 @@
 │       ├── user/          # SQL migration files for the user service
 │       └── catalog/       # SQL migration files for the catalog service
 ├── deploy/
-│   └── docker/
-│       ├── Dockerfile.user
-│       └── Dockerfile.catalog
+│   ├── docker/
+│   │   ├── Dockerfile.user
+│   │   └── Dockerfile.catalog
+│   └── kong/
+│       ├── kong.yml           # Kong declarative config (routes, plugins, consumers)
+│       └── jwt.key.pub        # RSA public key — embedded in kong.yml consumers block
 ├── docs/                  # design decision documentation (this dir)
 ├── pkg/                   # shared Go module (github.com/s4f4y4t/go-microservice/pkg)
 │   ├── apperror/          # typed application errors

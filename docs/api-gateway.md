@@ -85,25 +85,45 @@ The service-level `middleware.RequestID` middleware is still active — it reads
 
 ## Declarative Config
 
-`deploy/kong/kong.yml` is the single source of truth for Kong's routing and plugin configuration:
+`deploy/kong/kong.yml` is the single source of truth for Kong's routing and plugin configuration. Abbreviated structure:
 
 ```yaml
 _format_version: "3.0"
+
+consumers:
+  - username: app-users
+    jwt_secrets:
+      - algorithm: RS256
+        key: go-microservice   # must match the "iss" claim in every JWT
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          ...
+          -----END PUBLIC KEY-----
 
 services:
   - name: user-service
     url: http://user_app:6969
     routes:
-      - name: user-service-routes
-        paths: [/user]
-        strip_path: true
-    plugins:
-      - name: cors
-      - name: rate-limiting
-      - name: correlation-id
+      - name: user-service-users     # protected
+        paths: [/v1/users]
+        strip_path: false
+        plugins: [jwt, request-transformer, post-function]
+      - name: user-service-auth      # public — no jwt plugin
+        paths: [/v1/auth]
+        strip_path: false
+    plugins: [cors, rate-limiting, correlation-id]
+
+  - name: catalog-service
+    url: http://catalog_app:7070
+    routes:
+      - name: catalog-service-routes  # protected
+        paths: [/v1/products]
+        strip_path: false
+        plugins: [jwt, request-transformer, post-function]
+    plugins: [cors, rate-limiting, correlation-id]
 ```
 
-To add a new service: add a `services` entry pointing at the new container and define its routes and plugins. Restart Kong or call `POST /config` with the updated file.
+To add a new service: add a `services` entry pointing at the new container and define its routes and plugins. Restart Kong or hot-reload via `POST /config` with the updated file.
 
 ## Alternatives Considered
 

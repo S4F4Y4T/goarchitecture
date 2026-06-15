@@ -23,12 +23,13 @@ The project is in active development. A production image (Go builder stage → d
 ## Docker Compose Services
 
 ```
-user_app      — user service (port 6969)
-user_postgres — postgres:17-alpine (port 5433 on host)
-catalog_app   — catalog service (port 7070)
+user_app         — user service (exposed to Docker network only)
+user_postgres    — postgres:17-alpine (port 5433 on host)
+catalog_app      — catalog service (exposed to Docker network only)
 catalog_postgres — postgres:17-alpine (port 5434 on host)
-redis         — redis:7-alpine (port 6380 on host)
-pgadmin       — pgadmin4 (port 5050 on host)
+redis            — redis:7-alpine (port 6380 on host)
+kong             — Kong gateway (port 8000 proxy, port 8002→8001 admin on host)
+pgadmin          — pgadmin4 (port 5050 on host)
 ```
 
 ### Port Mapping Choices

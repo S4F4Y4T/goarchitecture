@@ -194,12 +194,10 @@ The cookie `Path` is scoped to `/v1/auth` so the browser never sends it alongsid
 JWT_PRIVATE_KEY_PATH=/app/deploy/kong/jwt.key   # RSA private key — signs tokens (user service only)
 JWT_ACCESS_EXPIRY=15m                            # access token lifetime
 JWT_REFRESH_EXPIRY=168h                          # refresh token lifetime (Redis TTL)
-COOKIE_SECURE=false                              # set true in production (requires HTTPS)
+COOKIE_SECURE=true                               # set false for local HTTP dev (Secure cookies require HTTPS)
 ```
 
 The RSA public key is embedded in `deploy/kong/kong.yml` for Kong to use. The service has no public key env var — it trusts Kong's `X-User-ID` header instead of re-verifying tokens itself.
-
-`COOKIE_SECURE` defaults to `true`. Set it to `false` for local HTTP development — `Secure` cookies are not sent over plain HTTP.
 
 ## Security Properties
 
