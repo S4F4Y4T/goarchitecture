@@ -32,3 +32,16 @@ func GetEnvDuration(key string, def time.Duration) time.Duration {
 	}
 	return d
 }
+
+func GetEnvBool(key string, def bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		slog.Warn("config: invalid env value, using default", "key", key, "value", v, "default", def)
+		return def
+	}
+	return b
+}

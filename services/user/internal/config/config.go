@@ -49,6 +49,7 @@ type JWTConfig struct {
 	Secret        string
 	AccessExpiry  time.Duration
 	RefreshExpiry time.Duration
+	CookieSecure  bool // set false in local HTTP dev; true in production (HTTPS required)
 }
 
 type Config struct {
@@ -180,5 +181,6 @@ func loadJWTConfig() (JWTConfig, error) {
 		Secret:        secret,
 		AccessExpiry:  pkgconfig.GetEnvDuration("JWT_ACCESS_EXPIRY", 15*time.Minute),
 		RefreshExpiry: pkgconfig.GetEnvDuration("JWT_REFRESH_EXPIRY", 7*24*time.Hour),
+		CookieSecure:  pkgconfig.GetEnvBool("COOKIE_SECURE", true),
 	}, nil
 }

@@ -73,6 +73,9 @@ paths:
     post:
       tags: [auth]
       summary: Login and obtain access + refresh tokens
+      description: |
+        Returns the access token in the body. The refresh token is set as an
+        httpOnly cookie (`refresh_token`) and is never exposed in the body.
       requestBody:
         required: true
         content:
@@ -85,7 +88,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseTokenPair"
+                $ref: "#/components/schemas/ApiResponseAccessToken"
+          headers:
+            Set-Cookie:
+              description: httpOnly refresh token cookie.
+              schema:
+                type: string
+                example: "refresh_token=<uuid>; HttpOnly; SameSite=Strict; Path=/v1/auth"
         "400":
           $ref: "#/components/responses/ErrorResponse"
         "401":
@@ -96,23 +105,22 @@ paths:
       tags: [auth]
       summary: Rotate tokens — exchange a refresh token for a new access + refresh pair
       description: |
-        The supplied refresh token is consumed (deleted) and a new pair is issued.
-        Store the new refresh token — the old one is no longer valid.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RefreshRequest"
+        The refresh token is read from the `refresh_token` httpOnly cookie set by
+        `/login`. The old token is consumed (deleted from Redis) and a new pair is
+        issued: a new access token in the body and a new cookie.
       responses:
         "200":
           description: Token refreshed
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponseTokenPair"
-        "400":
-          $ref: "#/components/responses/ErrorResponse"
+                $ref: "#/components/schemas/ApiResponseAccessToken"
+          headers:
+            Set-Cookie:
+              description: New `refresh_token` httpOnly cookie replacing the old one.
+              schema:
+                type: string
+                example: "refresh_token=<uuid>; HttpOnly; SameSite=Strict; Path=/v1/auth"
         "401":
           $ref: "#/components/responses/ErrorResponse"
 
@@ -120,18 +128,19 @@ paths:
     post:
       tags: [auth]
       summary: Invalidate a refresh token
-      description: Deletes the refresh token from the server. The operation is idempotent — sending an already-revoked token returns 204.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LogoutRequest"
+      description: |
+        Reads the `refresh_token` httpOnly cookie and deletes it from Redis.
+        Clears the cookie in the response. Idempotent — no cookie or an
+        already-revoked token both return 204.
       responses:
         "204":
           description: Logged out successfully
-        "400":
-          $ref: "#/components/responses/ErrorResponse"
+          headers:
+            Set-Cookie:
+              description: Expires the `refresh_token` cookie immediately.
+              schema:
+                type: string
+                example: "refresh_token=; HttpOnly; Max-Age=-1; Path=/v1/auth"
 
   /v1/users/:
     get:
@@ -424,48 +433,25 @@ components:
           format: password
           example: "s3cr3tpass"
 
-    RefreshRequest:
-      type: object
-      required: [refresh_token]
-      properties:
-        refresh_token:
-          type: string
-          format: uuid
-          example: "550e8400-e29b-41d4-a716-446655440000"
-
-    LogoutRequest:
-      type: object
-      required: [refresh_token]
-      properties:
-        refresh_token:
-          type: string
-          format: uuid
-          example: "550e8400-e29b-41d4-a716-446655440000"
-
-    TokenPair:
+    AccessToken:
       type: object
       properties:
         access_token:
           type: string
-          description: Short-lived JWT used in Authorization header
+          description: Short-lived JWT used in the Authorization header
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        refresh_token:
-          type: string
-          format: uuid
-          description: Long-lived opaque token used to obtain new access tokens
-          example: "550e8400-e29b-41d4-a716-446655440000"
         expires_in:
           type: integer
           description: Access token lifetime in seconds
           example: 900
 
-    ApiResponseTokenPair:
+    ApiResponseAccessToken:
       allOf:
         - $ref: "#/components/schemas/ApiResponse"
         - type: object
           properties:
             data:
-              $ref: "#/components/schemas/TokenPair"
+              $ref: "#/components/schemas/AccessToken"
 
     User:
       type: object

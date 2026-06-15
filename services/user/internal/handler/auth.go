@@ -8,26 +8,30 @@ import (
 	"github.com/s4f4y4t/go-microservice/pkg/apperror"
 	"github.com/s4f4y4t/go-microservice/pkg/request"
 	"github.com/s4f4y4t/go-microservice/pkg/response"
+	"github.com/s4f4y4t/go-microservice/pkg/token"
 	"github.com/s4f4y4t/go-microservice/pkg/validation"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/dto"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/service"
-	"github.com/s4f4y4t/go-microservice/pkg/token"
 )
 
+const refreshCookieName = "refresh_token"
+
 type AuthHandler struct {
-	service       *service.UserService
+	service       *service.AuthService
 	tokenStore    token.Store
 	jwtSecret     string
 	accessExpiry  time.Duration
 	refreshExpiry time.Duration
+	cookieSecure  bool
 }
 
 func NewAuthHandler(
-	svc *service.UserService,
+	svc *service.AuthService,
 	store token.Store,
 	jwtSecret string,
 	accessExpiry time.Duration,
 	refreshExpiry time.Duration,
+	cookieSecure bool,
 ) *AuthHandler {
 	return &AuthHandler{
 		service:       svc,
@@ -35,6 +39,7 @@ func NewAuthHandler(
 		jwtSecret:     jwtSecret,
 		accessExpiry:  accessExpiry,
 		refreshExpiry: refreshExpiry,
+		cookieSecure:  cookieSecure,
 	}
 }
 
@@ -75,7 +80,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokens, err := h.issueTokenPair(r, user.ID)
+	tokens, err := h.issueTokenPair(w, r, user.ID)
 	if err != nil {
 		response.Error(w, r, err)
 		return
@@ -85,29 +90,25 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	var req dto.RefreshRequest
-	if err := request.DecodeJSON(w, r, &req); err != nil {
-		response.Error(w, r, err)
-		return
-	}
-	if err := validation.Validate(&req); err != nil {
-		response.Error(w, r, err)
+	cookie, err := r.Cookie(refreshCookieName)
+	if err != nil {
+		response.Error(w, r, apperror.Unauthorized("missing refresh token"))
 		return
 	}
 
-	userID, err := h.tokenStore.UserID(r.Context(), req.RefreshToken)
+	userID, err := h.tokenStore.UserID(r.Context(), cookie.Value)
 	if err != nil {
 		response.Error(w, r, err)
 		return
 	}
 
 	// Rotate: delete the used token before issuing a new pair.
-	if err := h.tokenStore.Delete(r.Context(), req.RefreshToken); err != nil {
+	if err := h.tokenStore.Delete(r.Context(), cookie.Value); err != nil {
 		response.Error(w, r, apperror.Internal(err))
 		return
 	}
 
-	tokens, err := h.issueTokenPair(r, userID)
+	tokens, err := h.issueTokenPair(w, r, userID)
 	if err != nil {
 		response.Error(w, r, err)
 		return
@@ -117,25 +118,29 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	var req dto.LogoutRequest
-	if err := request.DecodeJSON(w, r, &req); err != nil {
-		response.Error(w, r, err)
-		return
-	}
-	if err := validation.Validate(&req); err != nil {
-		response.Error(w, r, err)
-		return
+	cookie, err := r.Cookie(refreshCookieName)
+	if err == nil {
+		// Best-effort: ignore "not found" so logout is idempotent.
+		_ = h.tokenStore.Delete(r.Context(), cookie.Value)
 	}
 
-	// Best-effort: ignore "not found" so logout is idempotent.
-	_ = h.tokenStore.Delete(r.Context(), req.RefreshToken)
+	http.SetCookie(w, &http.Cookie{
+		Name:     refreshCookieName,
+		Value:    "",
+		HttpOnly: true,
+		Secure:   h.cookieSecure,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/v1/auth",
+		MaxAge:   -1,
+	})
 
 	response.NoContent(w)
 }
 
-// issueTokenPair generates a fresh access JWT and a new UUID refresh token,
-// persists the refresh token, and returns both as a map ready for the response.
-func (h *AuthHandler) issueTokenPair(r *http.Request, userID int) (map[string]any, error) {
+// issueTokenPair generates a JWT access token and a UUID refresh token,
+// persists the refresh token in Redis, sets it as an httpOnly cookie,
+// and returns the access token + expiry for the response body.
+func (h *AuthHandler) issueTokenPair(w http.ResponseWriter, r *http.Request, userID int) (map[string]any, error) {
 	accessToken, err := token.Generate(userID, h.jwtSecret, h.accessExpiry)
 	if err != nil {
 		return nil, apperror.Internal(err)
@@ -146,9 +151,18 @@ func (h *AuthHandler) issueTokenPair(r *http.Request, userID int) (map[string]an
 		return nil, apperror.Internal(err)
 	}
 
+	http.SetCookie(w, &http.Cookie{
+		Name:     refreshCookieName,
+		Value:    refreshToken,
+		HttpOnly: true,
+		Secure:   h.cookieSecure,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/v1/auth",
+		MaxAge:   int(h.refreshExpiry.Seconds()),
+	})
+
 	return map[string]any{
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
-		"expires_in":    int(h.accessExpiry.Seconds()),
+		"access_token": accessToken,
+		"expires_in":   int(h.accessExpiry.Seconds()),
 	}, nil
 }
