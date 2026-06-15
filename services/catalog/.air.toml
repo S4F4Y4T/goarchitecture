@@ -1,6 +1,6 @@
 #:schema https://json.schemastore.org/any.json
 
-root = "../.."
+root = "."
 tmp_dir = "tmp"
 
 [build]
