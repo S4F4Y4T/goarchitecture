@@ -9,6 +9,8 @@ servers:
 
 tags:
   - name: health
+  - name: auth
+    description: Registration, login, token refresh, and logout
   - name: users
   - name: products
 
@@ -45,10 +47,98 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiResponse"
 
+  /v1/auth/register:
+    post:
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseUser"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+
+  /v1/auth/login:
+    post:
+      tags: [auth]
+      summary: Login and obtain access + refresh tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseTokenPair"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+
+  /v1/auth/refresh:
+    post:
+      tags: [auth]
+      summary: Rotate tokens — exchange a refresh token for a new access + refresh pair
+      description: |
+        The supplied refresh token is consumed (deleted) and a new pair is issued.
+        Store the new refresh token — the old one is no longer valid.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseTokenPair"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+
+  /v1/auth/logout:
+    post:
+      tags: [auth]
+      summary: Invalidate a refresh token
+      description: Deletes the refresh token from the server. The operation is idempotent — sending an already-revoked token returns 204.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+      responses:
+        "204":
+          description: Logged out successfully
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+
   /v1/users/:
     get:
       tags: [users]
       summary: List users
+      security:
+        - BearerAuth: []
       parameters:
         - name: page
           in: query
@@ -112,6 +202,8 @@ paths:
     post:
       tags: [users]
       summary: Create user
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -138,6 +230,8 @@ paths:
     get:
       tags: [users]
       summary: Get user by ID
+      security:
+        - BearerAuth: []
       responses:
         "200":
           description: User retrieved successfully
@@ -152,6 +246,8 @@ paths:
     put:
       tags: [users]
       summary: Update user (full replacement)
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -172,6 +268,8 @@ paths:
     delete:
       tags: [users]
       summary: Delete user
+      security:
+        - BearerAuth: []
       responses:
         "200":
           description: User deleted
@@ -289,7 +387,86 @@ paths:
           $ref: "#/components/responses/ErrorResponse"
 
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
+    RegisterRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          example: Alice
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: "s3cr3tpass"
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        password:
+          type: string
+          format: password
+          example: "s3cr3tpass"
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    LogoutRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    TokenPair:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Short-lived JWT used in Authorization header
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refresh_token:
+          type: string
+          format: uuid
+          description: Long-lived opaque token used to obtain new access tokens
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        expires_in:
+          type: integer
+          description: Access token lifetime in seconds
+          example: 900
+
+    ApiResponseTokenPair:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/TokenPair"
+
     User:
       type: object
       properties:

@@ -39,7 +39,7 @@ func main() {
 		defer rdb.Close()
 	}
 
-	handler := bootstrap.Register(db, cfg.JWT.Secret, cfg.JWT.Expiry)
+	handler := bootstrap.Register(db, rdb, cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
 
 	mux := router.Register(handler, cfg, rdb)
 

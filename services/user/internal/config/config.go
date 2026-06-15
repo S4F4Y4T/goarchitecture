@@ -46,8 +46,9 @@ type RateLimitConfig struct {
 }
 
 type JWTConfig struct {
-	Secret string
-	Expiry time.Duration
+	Secret        string
+	AccessExpiry  time.Duration
+	RefreshExpiry time.Duration
 }
 
 type Config struct {
@@ -176,7 +177,8 @@ func loadJWTConfig() (JWTConfig, error) {
 		return JWTConfig{}, fmt.Errorf("JWT_SECRET is required")
 	}
 	return JWTConfig{
-		Secret: secret,
-		Expiry: pkgconfig.GetEnvDuration("JWT_EXPIRY", 24*time.Hour),
+		Secret:        secret,
+		AccessExpiry:  pkgconfig.GetEnvDuration("JWT_ACCESS_EXPIRY", 15*time.Minute),
+		RefreshExpiry: pkgconfig.GetEnvDuration("JWT_REFRESH_EXPIRY", 7*24*time.Hour),
 	}, nil
 }

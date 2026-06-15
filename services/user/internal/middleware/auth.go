@@ -7,7 +7,7 @@ import (
 
 	"github.com/s4f4y4t/go-microservice/pkg/apperror"
 	"github.com/s4f4y4t/go-microservice/pkg/response"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/token"
+	"github.com/s4f4y4t/go-microservice/pkg/token"
 )
 
 type contextKey string
