@@ -11,9 +11,13 @@ RUN go install github.com/air-verse/air@latest
 COPY go.work go.work.sum ./
 COPY pkg/go.mod pkg/go.sum ./pkg/
 COPY services/user/go.mod services/user/go.sum ./services/user/
+COPY services/catalog/go.mod services/catalog/go.sum ./services/catalog/
+COPY services/docs/go.mod ./services/docs/
 RUN go mod download
 CMD ["air", "-c", "services/user/.air.toml"]
 ```
+
+Each service has its own Dockerfile (`Dockerfile.user`, `Dockerfile.catalog`, `Dockerfile.docs`) following this same pattern, with the `CMD` pointing at the appropriate `.air.toml`. The `docs` service has no external Go dependencies so it has no `go.sum`.
 
 The source code is **not** copied into the image at build time. It is mounted as a volume at runtime via `docker-compose.yml`. This means `docker compose up` reflects code changes immediately (via air) without rebuilding the image.
 
@@ -27,8 +31,9 @@ user_app         — user service (exposed to Docker network only)
 user_postgres    — postgres:17-alpine (port 5433 on host)
 catalog_app      — catalog service (exposed to Docker network only)
 catalog_postgres — postgres:17-alpine (port 5434 on host)
+docs_app         — API docs service / Swagger UI (exposed to Docker network only)
 redis            — redis:7-alpine (port 6380 on host)
-kong             — Kong gateway (port 8000 proxy, port 8002→8001 admin on host)
+kong             — Kong gateway (port 8100→8000 proxy, port 8101→8001 admin on host)
 pgadmin          — pgadmin4 (port 5050 on host)
 ```
 

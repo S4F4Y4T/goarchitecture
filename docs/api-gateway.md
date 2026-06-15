@@ -19,11 +19,12 @@ The tradeoff: the Admin API (`:8001`) is read-only. You cannot add routes or con
 
 | External path | Forwarded to | Strip prefix |
 |---|---|---|
-| `http://localhost:8000/v1/users/...` | `user_app:6969/v1/users/...` | no |
-| `http://localhost:8000/v1/auth/...` | `user_app:6969/v1/auth/...` | no |
-| `http://localhost:8000/v1/products/...` | `catalog_app:7070/v1/products/...` | no |
+| `http://localhost:8100/v1/users/...` | `user_app:6969/v1/users/...` | no |
+| `http://localhost:8100/v1/auth/...` | `user_app:6969/v1/auth/...` | no |
+| `http://localhost:8100/v1/products/...` | `catalog_app:7070/v1/products/...` | no |
+| `http://localhost:8100/docs` | `docs_app:9090/` | yes (`/docs` stripped) |
 
-`strip_path: false` — paths are forwarded as-is. The frontend calls `/v1/users/` and the service receives `/v1/users/`. No prefix translation needed because the path prefixes (`/v1/users`, `/v1/auth`, `/v1/products`) are unique across services, so Kong can route on them directly.
+`strip_path: false` — API paths are forwarded as-is. The path prefixes (`/v1/users`, `/v1/auth`, `/v1/products`) are unique across services so Kong can route on them without translation. The `/docs` route uses `strip_path: true` — the docs service serves from `/`, so the prefix must be stripped.
 
 ## Service Access
 
@@ -48,11 +49,27 @@ Applied to `/v1/users` and `/v1/products` only — not `/v1/auth`. Three plugins
 3. **`post-function`** (Lua) — reads `uid` from the verified JWT claims and injects it as `X-User-ID` on the forwarded request. The service reads this header to identify the caller — no JWT parsing needed in the service.
 
 ```lua
-local token = kong.ctx.shared.authenticated_jwt_token
-if token and token.claims and token.claims.uid then
-  kong.service.request.set_header("X-User-ID", tostring(token.claims.uid))
+local token_str = kong.ctx.shared.authenticated_jwt_token
+if token_str then
+  local b64 = token_str:match("^[^.]+%.([^.]+)%.")
+  if b64 then
+    -- pad + un-URL-safe the base64, then decode
+    local mod = #b64 % 4
+    if mod == 2 then b64 = b64 .. "=="
+    elseif mod == 3 then b64 = b64 .. "=" end
+    b64 = b64:gsub("%-", "+"):gsub("_", "/")
+    local payload = ngx.decode_base64(b64)
+    if payload then
+      local uid = payload:match('"uid"%s*:%s*(%d+)')
+      if uid then
+        kong.service.request.set_header("X-User-ID", uid)
+      end
+    end
+  end
 end
 ```
+
+The token string (not a parsed table) is extracted from shared context, the payload section is base64-decoded manually, and the `uid` field is pulled out with a pattern match. This avoids a JSON library dependency in Lua.
 
 The public key lives in the `consumers` block of `kong.yml`. The private key lives only in the user service. See [auth.md](auth.md) for the full token lifecycle.
 
@@ -80,8 +97,8 @@ The service-level `middleware.RequestID` middleware is still active — it reads
 
 | Port | What | Notes |
 |---|---|---|
-| `8000` | Kong proxy | External entry point for all API traffic |
-| `8002` (host) → `8001` (container) | Kong Admin API | Read-only in DB-less mode |
+| `8100` (host) → `8000` (container) | Kong proxy | External entry point for all API traffic |
+| `8101` (host) → `8001` (container) | Kong Admin API | Read-only in DB-less mode |
 
 ## Declarative Config
 
@@ -121,6 +138,13 @@ services:
         strip_path: false
         plugins: [jwt, request-transformer, post-function]
     plugins: [cors, rate-limiting, correlation-id]
+
+  - name: docs-service              # public — no JWT
+    url: http://docs_app:9090
+    routes:
+      - name: docs-route
+        paths: [/docs]
+        strip_path: true            # /docs stripped; docs_app serves from /
 ```
 
 To add a new service: add a `services` entry pointing at the new container and define its routes and plugins. Restart Kong or hot-reload via `POST /config` with the updated file.

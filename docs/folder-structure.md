@@ -11,7 +11,8 @@
 ├── deploy/
 │   ├── docker/
 │   │   ├── Dockerfile.user
-│   │   └── Dockerfile.catalog
+│   │   ├── Dockerfile.catalog
+│   │   └── Dockerfile.docs
 │   └── kong/
 │       ├── kong.yml           # Kong declarative config (routes, plugins, consumers)
 │       └── jwt.key.pub        # RSA public key — embedded in kong.yml consumers block
@@ -42,8 +43,15 @@
 │   │   │   └── service/   # business logic
 │   │   ├── .air.toml
 │   │   └── go.mod
-│   └── catalog/           # catalog service (identical structure)
-├── .env.example
+│   ├── catalog/           # catalog service (identical structure)
+│   └── docs/              # API docs service (serves Swagger UI + openapi.yaml)
+│       ├── cmd/api/main.go
+│       ├── static/
+│       │   ├── index.html     # Swagger UI (CDN-loaded)
+│       │   └── openapi.yaml   # Combined OpenAPI spec for all services
+│       ├── docs.go            # embed.FS for static/
+│       ├── .air.toml
+│       └── go.mod
 ├── docker-compose.yml
 ├── go.work
 ├── go.work.sum
