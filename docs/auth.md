@@ -24,7 +24,8 @@ Browser stores refresh token cookie automatically
   ↓
 GET  /v1/users/                 → Authorization: Bearer <access_token>
                                   Kong verifies RS256 signature (rejects if invalid/expired)
-                                  Service verifies RS256 signature (defense-in-depth)
+                                  Kong strips client X-User-ID, injects X-User-ID from claims
+                                  Service reads X-User-ID header → user ID in context
   ↓ (access token expires after 15 min)
 POST /v1/auth/refresh           → cookie sent automatically by browser
                                 → body: { access_token, expires_in }
@@ -51,7 +52,7 @@ openssl rsa -in deploy/kong/jwt.key -pubout -out deploy/kong/jwt.key.pub
 
 The public key is embedded in `deploy/kong/kong.yml` under the `consumers` block so Kong can verify signatures without a database call.
 
-Kong verifies the JWT at the gateway for `/v1/users` and `/v1/products`. The service-level `Auth` middleware re-verifies with the public key as defense-in-depth, then extracts the `uid` claim into request context.
+Kong verifies the JWT at the gateway for `/v1/users` and `/v1/products`, then injects `X-User-ID` as a trusted header. The service-level `Auth` middleware reads this header to get the user ID — no JWT parsing in the service.
 
 ## Token Package (`pkg/token`)
 
@@ -103,15 +104,17 @@ Redis key expiry is the enforcement mechanism for refresh token lifetime. No sep
 Protects routes that require a logged-in user:
 
 ```go
-func Auth(publicKey *rsa.PublicKey) func(http.Handler) http.Handler
+func Auth() func(http.Handler) http.Handler
 func GetUserID(ctx context.Context) (int, bool)
 ```
 
-The middleware:
-1. Reads the `Authorization` header and strips the `Bearer ` prefix.
-2. Calls `token.ParseUserID` to verify the RS256 signature and expiry with the public key.
+Kong verifies the JWT signature and injects `X-User-ID` before the request reaches the service. The middleware:
+1. Reads the `X-User-ID` header (injected by Kong's `post-function` plugin).
+2. Parses it to `int` and rejects non-positive values with `401`.
 3. Stores the `userID` in request context via `GetUserID`.
 4. Returns `401` immediately on any failure — the handler is never called.
+
+No JWT parsing or RSA key material is needed in the middleware. Kong strips any client-supplied `X-User-ID` header before injecting its own, so the header is trustworthy on the internal Docker network.
 
 Applied at the route group level, not per-handler:
 
@@ -188,12 +191,13 @@ The cookie `Path` is scoped to `/v1/auth` so the browser never sends it alongsid
 ## Configuration
 
 ```
-JWT_PRIVATE_KEY_PATH=/app/deploy/kong/jwt.key   # RSA private key (user service only)
-JWT_PUBLIC_KEY_PATH=/app/deploy/kong/jwt.key.pub # RSA public key (service + embedded in kong.yml)
+JWT_PRIVATE_KEY_PATH=/app/deploy/kong/jwt.key   # RSA private key — signs tokens (user service only)
 JWT_ACCESS_EXPIRY=15m                            # access token lifetime
 JWT_REFRESH_EXPIRY=168h                          # refresh token lifetime (Redis TTL)
 COOKIE_SECURE=false                              # set true in production (requires HTTPS)
 ```
+
+The RSA public key is embedded in `deploy/kong/kong.yml` for Kong to use. The service has no public key env var — it trusts Kong's `X-User-ID` header instead of re-verifying tokens itself.
 
 `COOKIE_SECURE` defaults to `true`. Set it to `false` for local HTTP development — `Secure` cookies are not sent over plain HTTP.
 
@@ -202,8 +206,8 @@ COOKIE_SECURE=false                              # set true in production (requi
 | Property | Mechanism |
 |---|---|
 | Access token integrity | RS256 signature; Kong rejects invalid/expired tokens at the gateway |
-| Access token verification | Service re-verifies with public key (defense-in-depth) |
-| Private key isolation | Only the user service holds the private key; Kong and other services only need the public key |
+| User ID propagation | Kong injects `X-User-ID` after verification; client-supplied value stripped first |
+| Private key isolation | Only the user service holds the private key; public key is only in `kong.yml` |
 | Refresh token XSS resistance | `httpOnly` cookie — JavaScript cannot read the token |
 | Refresh token CSRF resistance | `SameSite=Strict` — cookie not sent on cross-site requests |
 | Refresh token secrecy | UUID is unguessable; only valid if present in Redis |
@@ -218,5 +222,5 @@ COOKIE_SECURE=false                              # set true in production (requi
 - **Stateless refresh tokens (signed JWT)** — no Redis dependency. Downside: impossible to revoke before expiry. A stolen refresh token would be valid for its full 7-day lifetime with no remedy. Stateful refresh tokens allow immediate revocation via logout or key rotation.
 - **Refresh token in response body** — simpler for mobile and non-browser clients, but exposes the token to JavaScript (XSS risk). The httpOnly cookie approach is implemented; mobile clients that can't use cookies can use an alternative endpoint or pass credentials differently.
 - **`SameSite=None` cookie** — required if the SPA is on a different origin (`https://app.example.com` → `https://api.example.com`). Allows cross-site requests but requires `Secure=true` and HTTPS. Change `SameSiteStrictMode` to `SameSiteNoneMode` in `issueTokenPair` and `Logout` for this case.
-- **Skip service-level JWT verification (trust Kong)** — Kong already verified the token; the service could simply parse (not verify) the JWT to extract claims. Saves one RSA operation per request. Not done: defense-in-depth is worth the cost, and the public key is already loaded at startup.
+- **Service-level JWT re-verification** — the service could also verify the RS256 signature with the public key for defense-in-depth. Not done: the network boundary (`expose` not `ports`) and Kong's `request-transformer` stripping forged `X-User-ID` headers are the chosen trust boundary. Adding the public key to the service would create a second copy to rotate on key change.
 - **Token reuse detection** — on refresh, if the presented token was already rotated (i.e., Redis miss), revoke all sessions for that user. Not implemented; requires storing a per-user session list in addition to per-token keys.

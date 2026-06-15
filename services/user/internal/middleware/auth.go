@@ -2,30 +2,31 @@ package middleware
 
 import (
 	"context"
-	"crypto/rsa"
 	"net/http"
-	"strings"
+	"strconv"
 
 	"github.com/s4f4y4t/go-microservice/pkg/apperror"
 	"github.com/s4f4y4t/go-microservice/pkg/response"
-	"github.com/s4f4y4t/go-microservice/pkg/token"
 )
 
 type contextKey string
 
 const userIDKey contextKey = "user_id"
 
-func Auth(publicKey *rsa.PublicKey) func(http.Handler) http.Handler {
+// Auth reads X-User-ID injected by Kong after JWT verification.
+// Kong strips any client-supplied X-User-ID before injecting its own,
+// so this header is trustworthy on the internal Docker network.
+func Auth() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if !strings.HasPrefix(authHeader, "Bearer ") {
+			userIDStr := r.Header.Get("X-User-ID")
+			if userIDStr == "" {
 				response.Error(w, r, apperror.Unauthorized("missing or invalid authorization header"))
 				return
 			}
-			userID, err := token.ParseUserID(strings.TrimPrefix(authHeader, "Bearer "), publicKey)
-			if err != nil {
-				response.Error(w, r, apperror.Unauthorized("invalid or expired token"))
+			userID, err := strconv.Atoi(userIDStr)
+			if err != nil || userID <= 0 {
+				response.Error(w, r, apperror.Unauthorized("invalid user ID"))
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userIDKey, userID)))

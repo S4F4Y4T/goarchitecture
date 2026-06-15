@@ -17,7 +17,7 @@ func Register(handler *bootstrap.App, cfg *config.Config, rdb *redis.Client) htt
 	mux := http.NewServeMux()
 
 	v1 := http.NewServeMux()
-	RegisterUsersRoute(v1, handler.UserHandler, svcmiddleware.Auth(cfg.JWT.PublicKey))
+	RegisterUsersRoute(v1, handler.UserHandler, svcmiddleware.Auth())
 	RegisterAuthRoute(v1, handler.AuthHandler)
 
 	mux.Handle("/v1/", http.StripPrefix("/v1", v1))
