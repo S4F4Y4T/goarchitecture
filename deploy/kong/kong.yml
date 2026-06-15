@@ -49,9 +49,22 @@ services:
             config:
               access:
                 - |
-                  local token = kong.ctx.shared.authenticated_jwt_token
-                  if token and token.claims and token.claims.uid then
-                    kong.service.request.set_header("X-User-ID", tostring(token.claims.uid))
+                  local token_str = kong.ctx.shared.authenticated_jwt_token
+                  if token_str then
+                    local b64 = token_str:match("^[^.]+%.([^.]+)%.")
+                    if b64 then
+                      local mod = #b64 % 4
+                      if mod == 2 then b64 = b64 .. "=="
+                      elseif mod == 3 then b64 = b64 .. "=" end
+                      b64 = b64:gsub("%-", "+"):gsub("_", "/")
+                      local payload = ngx.decode_base64(b64)
+                      if payload then
+                        local uid = payload:match('"uid"%s*:%s*(%d+)')
+                        if uid then
+                          kong.service.request.set_header("X-User-ID", uid)
+                        end
+                      end
+                    end
                   end
 
       # Public routes — no jwt plugin
@@ -122,9 +135,22 @@ services:
             config:
               access:
                 - |
-                  local token = kong.ctx.shared.authenticated_jwt_token
-                  if token and token.claims and token.claims.uid then
-                    kong.service.request.set_header("X-User-ID", tostring(token.claims.uid))
+                  local token_str = kong.ctx.shared.authenticated_jwt_token
+                  if token_str then
+                    local b64 = token_str:match("^[^.]+%.([^.]+)%.")
+                    if b64 then
+                      local mod = #b64 % 4
+                      if mod == 2 then b64 = b64 .. "=="
+                      elseif mod == 3 then b64 = b64 .. "=" end
+                      b64 = b64:gsub("%-", "+"):gsub("_", "/")
+                      local payload = ngx.decode_base64(b64)
+                      if payload then
+                        local uid = payload:match('"uid"%s*:%s*(%d+)')
+                        if uid then
+                          kong.service.request.set_header("X-User-ID", uid)
+                        end
+                      end
+                    end
                   end
 
     plugins:
