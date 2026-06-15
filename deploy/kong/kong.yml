@@ -9,13 +9,13 @@ consumers:
         key: go-microservice
         rsa_public_key: |
           -----BEGIN PUBLIC KEY-----
-          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnaMsgnMmxwf2u0UbO+Ye
-          BoyCWDeLpciAWBZIo4JP/289TSheBKTo4amg5/UxMPgtakpEFxDFL+jZZG/4506Z
-          U1VH9O2CXgqN/wdOJYSr6c6LawlQcYANLw+Fv3q+gZwGG0MCwnoSf+jcH2EnUPM9
-          vd81qml8RKjCc2XM+kQ1ETZms69cVdqLehxXbLX6A8cuj3h/DpMw7JaD76MAdwzC
-          rZCDyJuZ0uo0+xzxkWJDyIi7M9D/ofeFHYkmDZ8R4LYkEehLeeRJmsSQrH6ug4d7
-          rfJVJUtkG93OQEewg2LUpcl49xXQlpfHSjlrLw0/NdkE1XgyfmNb5LstqZImdezc
-          oQIDAQAB
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuDcSTizHHCuqYxz2Ey76
+          rfdgac/XycwJvz8Nf1yWKwZ054cU5GH0gco/LCjuSXCYJvif/UpJ05mAZ4wolilR
+          sTb8PhidpV3Gb4ZIeSpsmsTiBZKuVjTH7R6w7Zv969qwFsz+Bkkh4FoD+XfpH9qa
+          fqv9aGfj2+or0muhJgTS4ySUylohKGqWf0LWRG+Ti6lmeIA4/02qJ+HIElH2Yby2
+          CPlNpszt2mix5sCcZax9NkuwJRoQl1Rlp6WmzHB4U82a7sYwj2cwsZ3zc9ZOyTfF
+          KO7v+baIKsjeYChZS6HTFdKW9r2Im/5yF9SOdpI2UEvbkcNSuhYiAdrF1s7F92p/
+          GQIDAQAB
           -----END PUBLIC KEY-----
 
 services:
