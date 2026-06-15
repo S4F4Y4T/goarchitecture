@@ -1,3 +1,5 @@
+A monorepo-based microservices architecture using Layered Architecture (Handler-Service-Repository) with independent Go modules.
+
 # Documentation Index
 
 Design decision docs for this Go microservice project. Each doc covers the **what**, **why**, and **alternatives considered**.

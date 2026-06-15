@@ -111,6 +111,21 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Docs service ─────────────────────────────────────────────────────────────
+  docs_app:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.docs
+    container_name: docs_app
+    expose:
+      - "${DOCS_APP_PORT}"
+    volumes:
+      - .:/app
+      - go_cache:/root/go/pkg/mod
+    environment:
+      PORT: ${DOCS_APP_PORT}
+    restart: unless-stopped
+
   # ── Kong API Gateway ─────────────────────────────────────────────────────────
   kong:
     image: kong:3.7
@@ -133,6 +148,8 @@ services:
       user_app:
         condition: service_started
       catalog_app:
+        condition: service_started
+      docs_app:
         condition: service_started
     healthcheck:
       test: ["CMD", "kong", "health"]

@@ -182,3 +182,15 @@ services:
           header_name: X-Request-ID
           generator: uuid
           echo_downstream: true
+
+  # ── API Docs — public, no JWT ────────────────────────────────────────────────
+  - name: docs-service
+    url: http://docs_app:9090
+    routes:
+      - name: docs-route
+        paths:
+          - /docs
+        strip_path: true
+        preserve_host: false
+        protocols:
+          - http

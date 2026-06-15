@@ -5,11 +5,9 @@ import (
 
 	"github.com/s4f4y4t/go-microservice/services/catalog/internal/bootstrap"
 	"github.com/s4f4y4t/go-microservice/services/catalog/internal/config"
-	"github.com/s4f4y4t/go-microservice/services/catalog/docs"
 	"github.com/s4f4y4t/go-microservice/pkg/middleware"
 
 	"github.com/redis/go-redis/v9"
-	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func Register(handler *bootstrap.App, cfg *config.Config, rdb *redis.Client) http.Handler {
@@ -21,12 +19,6 @@ func Register(handler *bootstrap.App, cfg *config.Config, rdb *redis.Client) htt
 
 	mux.HandleFunc("GET /healthz", handler.HealthHandler.Live)
 	mux.HandleFunc("GET /readyz", handler.HealthHandler.Ready)
-
-	mux.HandleFunc("GET /swagger/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/yaml")
-		w.Write(docs.SpecYAML)
-	})
-	mux.Handle("/swagger/", httpSwagger.Handler(httpSwagger.URL("/swagger/openapi.yaml")))
 
 	return middleware.Chain(
 		middleware.RequestID,
