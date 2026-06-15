@@ -73,4 +73,4 @@ In-memory counters are per-process. In a multi-instance deployment (multiple pod
 - **Sliding window log** — tracks exact timestamps of each request. More accurate, more memory per client. Not needed for per-minute abuse prevention.
 - **Token bucket** — allows short bursts above the average rate. More user-friendly (burst headroom). More complex to implement atomically in Redis. Deferred.
 - **golang.org/x/time/rate** — in-memory token bucket. Same problem as in-memory counters (per-process only).
-- **API gateway rate limiting (Kong, nginx)** — push rate limiting to the edge. Better when all services share the same limits. Deferred for when an API gateway is added.
+- **API gateway rate limiting (Kong, nginx)** — push rate limiting to the edge. Better when all services share the same limits. **This is now the active approach** — Kong handles rate limiting before requests reach the services. The service-level `RateLimit` middleware is commented out. See [api-gateway.md](api-gateway.md).

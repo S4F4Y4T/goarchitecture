@@ -34,8 +34,8 @@ func Register(handler *bootstrap.App, cfg *config.Config, rdb *redis.Client) htt
 	return middleware.Chain(
 		middleware.RequestID,
 		middleware.Logger,
-		middleware.Cors(cfg.CORS.AllowedOrigins),
-		middleware.RateLimit(rdb, "user", cfg.RateLimit.Requests, cfg.RateLimit.Window),
+		// middleware.Cors(cfg.CORS.AllowedOrigins),        // handled by Kong
+		// middleware.RateLimit(rdb, "user", cfg.RateLimit.Requests, cfg.RateLimit.Window), // handled by Kong
 		middleware.PanicRecovery,
 	)(mux)
 }

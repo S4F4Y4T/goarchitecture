@@ -28,4 +28,5 @@ Design decision docs for this Go microservice project. Each doc covers the **wha
 | Authentication | [auth.md](auth.md) | JWT + refresh token, Redis store, token rotation, auth middleware |
 | HTTP Server & Graceful Shutdown | [http-server.md](http-server.md) | Timeouts (read/write/idle), MaxHeaderBytes, SIGTERM drain |
 | Docker & Containerization | [docker.md](docker.md) | Dev images, docker-compose, port strategy, health checks |
+| API Gateway | [api-gateway.md](api-gateway.md) | Kong DB-less mode, routing, CORS/rate-limit/correlation-ID plugins |
 | **Roadmap** | [next.md](next.md) | Phase-by-phase checklist for large-scale production (auth, gRPC, Kafka, k8s, observability…) |

@@ -1,11 +1,12 @@
 package router
 
 import (
+	"net/http"
+
 	"github.com/s4f4y4t/go-microservice/services/catalog/internal/bootstrap"
 	"github.com/s4f4y4t/go-microservice/services/catalog/internal/config"
 	"github.com/s4f4y4t/go-microservice/services/catalog/docs"
 	"github.com/s4f4y4t/go-microservice/pkg/middleware"
-	"net/http"
 
 	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -30,8 +31,8 @@ func Register(handler *bootstrap.App, cfg *config.Config, rdb *redis.Client) htt
 	return middleware.Chain(
 		middleware.RequestID,
 		middleware.Logger,
-		middleware.Cors(cfg.CORS.AllowedOrigins),
-		middleware.RateLimit(rdb, "catalog", cfg.RateLimit.Requests, cfg.RateLimit.Window),
+		// middleware.Cors(cfg.CORS.AllowedOrigins),           // handled by Kong
+		// middleware.RateLimit(rdb, "catalog", cfg.RateLimit.Requests, cfg.RateLimit.Window), // handled by Kong
 		middleware.PanicRecovery,
 	)(mux)
 }

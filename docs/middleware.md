@@ -6,8 +6,6 @@
 Request →
   RequestID
   → Logger
-  → CORS
-  → RateLimit
   → PanicRecovery
   → handler
 ← Response
@@ -15,14 +13,16 @@ Request →
 
 Each middleware wraps the next. The outermost middleware (RequestID) is the first to run on the way in and the last to run on the way out.
 
+`Cors` and `RateLimit` are present in the codebase but commented out in both service routers — they are now handled by the Kong API gateway before requests reach the services. See [api-gateway.md](api-gateway.md).
+
 ## `pkg/middleware` Chain Builder
 
 ```go
 chain := middleware.Chain(
     middleware.RequestID,
     middleware.Logger,
-    middleware.Cors(allowedOrigins),
-    middleware.RateLimit(rdb, "global", requests, window),
+    // middleware.Cors(allowedOrigins),             // handled by Kong
+    // middleware.RateLimit(rdb, ns, reqs, window), // handled by Kong
     middleware.PanicRecovery,
 )
 handler := chain(router)
