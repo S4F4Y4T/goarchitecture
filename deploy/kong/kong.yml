@@ -11,8 +11,9 @@ services:
     routes:
       - name: user-service-routes
         paths:
-          - /user
-        strip_path: true
+          - /v1/users
+          - /v1/auth
+        strip_path: false
         preserve_host: false
         protocols:
           - http
@@ -55,8 +56,8 @@ services:
     routes:
       - name: catalog-service-routes
         paths:
-          - /catalog
-        strip_path: true
+          - /v1/products
+        strip_path: false
         preserve_host: false
         protocols:
           - http

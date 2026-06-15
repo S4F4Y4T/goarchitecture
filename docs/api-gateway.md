@@ -17,12 +17,13 @@ The tradeoff: the Admin API (`:8001`) is read-only. You cannot add routes or con
 
 ## Routing
 
-| External path | Forwarded to | Strips prefix |
+| External path | Forwarded to | Strip prefix |
 |---|---|---|
-| `http://localhost:8000/user/...` | `user_app:6969/...` | `/user` |
-| `http://localhost:8000/catalog/...` | `catalog_app:7070/...` | `/catalog` |
+| `http://localhost:8000/v1/users/...` | `user_app:6969/v1/users/...` | no |
+| `http://localhost:8000/v1/auth/...` | `user_app:6969/v1/auth/...` | no |
+| `http://localhost:8000/v1/products/...` | `catalog_app:7070/v1/products/...` | no |
 
-`strip_path: true` removes the Kong-specific prefix before forwarding, so a request to `/user/v1/users/` reaches the service as `/v1/users/`.
+`strip_path: false` — paths are forwarded as-is. The frontend calls `/v1/users/` and the service receives `/v1/users/`. No prefix translation needed because the path prefixes (`/v1/users`, `/v1/auth`, `/v1/products`) are unique across services, so Kong can route on them directly.
 
 ## Service Access
 
