@@ -24,7 +24,7 @@ coverage.html
 *.exe~
 
 # ── Secrets & keys ───────────────────────────────────────────────────────────
-deploy/kong/jwt.key      # RSA private key — never commit
+# deploy/kong/jwt.key is covered by *.key below — never commit private keys
 *.pem
 *.key
 !*.key.pub               # public keys are safe to commit
