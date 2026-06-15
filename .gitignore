@@ -44,7 +44,6 @@ Thumbs.db
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
-!build-errors.log        # air writes this to tmp/, but list explicitly
 
 # ── k8s sensitive overlays ───────────────────────────────────────────────────
 deploy/k8s/**/secret*.yaml
