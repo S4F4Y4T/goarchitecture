@@ -73,16 +73,16 @@ Must be in place before going to production. Cannot debug a distributed system w
 
 ---
 
-## Phase 3 — API Gateway
+## Phase 3 — API Gateway ✓
 
 Centralizes cross-cutting concerns so individual services don't each implement them.
 
-- [ ] Choose gateway: **Kong** (feature-rich, Postgres-backed), **Traefik** (k8s-native, zero-config), or **nginx** (simple, battle-tested)
-- [ ] Route all external traffic through the gateway — services are not directly reachable
-- [ ] Move rate limiting to gateway (per-user, per-token, per-endpoint limits) — keep application-level rate limit as last-resort safety net only
-- [ ] Move CORS handling to gateway — remove from individual services
-- [ ] Add gateway-level auth token verification (forward validated claims as headers to services)
-- [ ] Request/response logging at gateway level (access log for the whole system)
+- [x] Choose gateway: **Kong DB-less mode** — config in `deploy/kong/kong.yml`, no external database (see [api-gateway.md](api-gateway.md))
+- [x] Route all external traffic through the gateway — services use `expose` not `ports`, not directly reachable from host
+- [x] Move rate limiting to gateway (Kong `rate-limiting` plugin, per-IP, 100 req/min) — service-level middleware commented out
+- [x] Move CORS handling to gateway (Kong `cors` plugin) — service-level middleware commented out
+- [x] Correlation ID injection at gateway (Kong `correlation-id` plugin → `X-Request-ID`)
+- [x] Add gateway-level auth token verification — Kong `jwt` plugin with RS256; applied per-route (`/v1/users`, `/v1/products`); `/v1/auth` stays public (see [auth.md](auth.md))
 - [ ] Load balancing across multiple service instances
 - [ ] Circuit breaker at gateway for downstream service failures
 - [ ] SSL termination at gateway — services communicate over plain HTTP internally
@@ -91,19 +91,25 @@ Centralizes cross-cutting concerns so individual services don't each implement t
 
 ## Phase 4 — gRPC (East-West Communication)
 
-Replace service-to-service HTTP calls with gRPC once multiple services need to talk to each other.
+Replace service-to-service HTTP calls with gRPC once multiple services need to talk to each other. Keep REST/HTTP for external (client-facing) APIs; use gRPC only for internal (service-to-service) communication.
 
-- [ ] Install protobuf toolchain: `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc`
+### Toolchain & Contracts
+- [ ] Install protobuf toolchain: `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc`, `protoc-gen-validate`
 - [ ] Create `proto/` directory at monorepo root for shared `.proto` definitions
 - [ ] Define service contracts: `proto/user/v1/user.proto`, `proto/catalog/v1/catalog.proto`
+- [ ] Declare field validation rules in `.proto` using `protoc-gen-validate` (PGV) — e.g., `(validate.rules).string.uuid = true`; generated code validates at the handler boundary
 - [ ] Generate Go stubs into `pkg/proto/` via `make proto`
-- [ ] Implement gRPC server alongside HTTP server in each service (separate port, e.g., `:50051`)
-- [ ] Implement gRPC client in services that need to call other services
-- [ ] Add gRPC middleware: request ID propagation, structured logging, panic recovery, auth
-- [ ] Add gRPC health check protocol (`grpc_health_v1`) for load balancer integration
-- [ ] mTLS between services (use SPIFFE/SPIRE or cert-manager in k8s)
-- [ ] Keep REST/HTTP for external (client-facing) APIs; use gRPC only for internal (service-to-service) communication
+
+### Server & Client
+- [ ] Implement gRPC server alongside HTTP server in each service (separate internal port, e.g., `:50051` — `expose` only, not `ports`)
+- [ ] Implement gRPC client in services that need to call peers
+- [ ] Add gRPC interceptors: request ID propagation (read `X-Request-ID` from metadata), structured logging, panic recovery
+- [ ] Add gRPC health check protocol (`grpc_health_v1`) for load balancer / k8s probe integration
 - [ ] Add gRPC reflection for dev tooling (`grpcurl`, `grpcui`)
+
+### Auth
+- [ ] **Docker network (current)**: no gRPC auth required — internal ports are not reachable from outside the Docker network; trust the network boundary
+- [ ] **Kubernetes / multi-node**: add mTLS — each service gets a cert, peers verify identity; use cert-manager or SPIFFE/SPIRE; no application-level token logic needed, the sidecar (Envoy / Linkerd) handles it transparently
 
 ---
 

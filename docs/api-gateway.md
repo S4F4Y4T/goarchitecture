@@ -36,7 +36,12 @@ expose:
 
 ## Plugins
 
-Three plugins are configured per service.
+Four plugins are in play — three at the service level, one at the route level.
+
+### JWT Verification (route-level)
+Applied to `/v1/users` and `/v1/products` only — not `/v1/auth`. Kong reads the `iss` claim from the token, finds the matching consumer credential (`key: go-microservice`), and verifies the RS256 signature using the embedded RSA public key. Requests with a missing, expired, or tampered token receive `401` before reaching the service.
+
+The public key lives in the `consumers` block of `kong.yml`. The private key lives only in the user service (file path set via `JWT_PRIVATE_KEY_PATH`). See [auth.md](auth.md) for the full token lifecycle.
 
 ### CORS
 Handles preflight `OPTIONS` requests and sets `Access-Control-*` headers on all responses. Configured at the gateway so the services themselves do not need to set these headers.

@@ -6,10 +6,10 @@ Authentication is split into two token types issued on login and rotated on ever
 
 | Token | Type | Lifetime | Delivery |
 |---|---|---|---|
-| Access token | HS256 JWT | 15 min (configurable) | JSON response body |
+| Access token | RS256 JWT | 15 min (configurable) | JSON response body |
 | Refresh token | UUID v4 (opaque) | 7 days (configurable) | `httpOnly` cookie; stored in Redis |
 
-The access token is short-lived and stateless — the server validates its signature without a database call. The refresh token is long-lived and stateful — Redis is the source of truth for whether it is still valid. Storing the refresh token in an `httpOnly` cookie means JavaScript cannot read it, eliminating the XSS theft vector.
+The access token is short-lived and stateless — Kong verifies its signature at the gateway before the request reaches any service. The refresh token is long-lived and stateful — Redis is the source of truth for whether it is still valid. Storing the refresh token in an `httpOnly` cookie means JavaScript cannot read it, eliminating the XSS theft vector.
 
 ## Flow
 
@@ -23,6 +23,8 @@ Client stores access token (memory / localStorage)
 Browser stores refresh token cookie automatically
   ↓
 GET  /v1/users/                 → Authorization: Bearer <access_token>
+                                  Kong verifies RS256 signature (rejects if invalid/expired)
+                                  Service verifies RS256 signature (defense-in-depth)
   ↓ (access token expires after 15 min)
 POST /v1/auth/refresh           → cookie sent automatically by browser
                                 → body: { access_token, expires_in }
@@ -32,6 +34,25 @@ POST /v1/auth/logout            → cookie sent automatically
                                 → clears cookie (Max-Age=-1), deletes from Redis
 ```
 
+## RS256 Key Pair
+
+The user service signs tokens with an RSA private key. Kong and the service itself verify tokens with the corresponding RSA public key. The private key never leaves the user service.
+
+```
+deploy/kong/jwt.key      ← RSA private key (gitignored; user service only)
+deploy/kong/jwt.key.pub  ← RSA public key  (committed; used by Kong and the service)
+```
+
+Generate a new key pair:
+```bash
+openssl genrsa -out deploy/kong/jwt.key 2048
+openssl rsa -in deploy/kong/jwt.key -pubout -out deploy/kong/jwt.key.pub
+```
+
+The public key is embedded in `deploy/kong/kong.yml` under the `consumers` block so Kong can verify signatures without a database call.
+
+Kong verifies the JWT at the gateway for `/v1/users` and `/v1/products`. The service-level `Auth` middleware re-verifies with the public key as defense-in-depth, then extracts the `uid` claim into request context.
+
 ## Token Package (`pkg/token`)
 
 JWT logic and the refresh token store interface live in `pkg/token` so they can be reused across all services.
@@ -39,12 +60,15 @@ JWT logic and the refresh token store interface live in `pkg/token` so they can 
 ### `pkg/token/jwt.go`
 
 ```go
-func Generate(userID int, secret string, expiry time.Duration) (string, error)
-func ParseUserID(tokenStr, secret string) (int, error)
+const Issuer = "go-microservice"  // must match Kong consumer credential key
+
+func Generate(userID int, privateKey *rsa.PrivateKey, expiry time.Duration) (string, error)
+func ParseUserID(tokenStr string, publicKey *rsa.PublicKey) (int, error)
 ```
 
-`Generate` creates a signed HS256 JWT with a `uid` claim and an `exp` claim.
-`ParseUserID` validates the signature and algorithm, then returns the `uid` claim as `int`.
+`Generate` creates a signed RS256 JWT with `iss`, `uid`, and `exp` claims. The `iss` value must match the `key` field of the Kong consumer credential so Kong can locate the right public key.
+
+`ParseUserID` validates the algorithm (rejects non-RSA), verifies the signature, checks `exp`, and returns the `uid` claim as `int`.
 
 Using a typed `Claims` struct (not `jwt.MapClaims`) avoids the float64 coercion that happens when numeric claims are decoded into `map[string]any`.
 
@@ -79,13 +103,13 @@ Redis key expiry is the enforcement mechanism for refresh token lifetime. No sep
 Protects routes that require a logged-in user:
 
 ```go
-func Auth(secret string) func(http.Handler) http.Handler
+func Auth(publicKey *rsa.PublicKey) func(http.Handler) http.Handler
 func GetUserID(ctx context.Context) (int, bool)
 ```
 
 The middleware:
 1. Reads the `Authorization` header and strips the `Bearer ` prefix.
-2. Calls `token.ParseUserID` to validate the JWT signature and expiry.
+2. Calls `token.ParseUserID` to verify the RS256 signature and expiry with the public key.
 3. Stores the `userID` in request context via `GetUserID`.
 4. Returns `401` immediately on any failure — the handler is never called.
 
@@ -136,11 +160,11 @@ The delete error is discarded so logout is idempotent. If no cookie is present, 
 
 ### `issueTokenPair`
 
-Shared by Login and Refresh. Sets the cookie directly on the response writer:
+Shared by Login and Refresh. Signs the access token with the RSA private key and sets the refresh cookie:
 
 ```go
 func (h *AuthHandler) issueTokenPair(w http.ResponseWriter, r *http.Request, userID int) (map[string]any, error) {
-    accessToken, _ := token.Generate(userID, h.jwtSecret, h.accessExpiry)
+    accessToken, _ := token.Generate(userID, h.privateKey, h.accessExpiry)
     refreshToken   := uuid.NewString()
     h.tokenStore.Save(r.Context(), refreshToken, userID, h.refreshExpiry)
     http.SetCookie(w, &http.Cookie{
@@ -164,10 +188,11 @@ The cookie `Path` is scoped to `/v1/auth` so the browser never sends it alongsid
 ## Configuration
 
 ```
-JWT_SECRET=change-me-in-production   # HMAC signing key
-JWT_ACCESS_EXPIRY=15m                # access token lifetime
-JWT_REFRESH_EXPIRY=168h              # refresh token lifetime (Redis TTL)
-COOKIE_SECURE=false                  # set true in production (requires HTTPS)
+JWT_PRIVATE_KEY_PATH=/app/deploy/kong/jwt.key   # RSA private key (user service only)
+JWT_PUBLIC_KEY_PATH=/app/deploy/kong/jwt.key.pub # RSA public key (service + embedded in kong.yml)
+JWT_ACCESS_EXPIRY=15m                            # access token lifetime
+JWT_REFRESH_EXPIRY=168h                          # refresh token lifetime (Redis TTL)
+COOKIE_SECURE=false                              # set true in production (requires HTTPS)
 ```
 
 `COOKIE_SECURE` defaults to `true`. Set it to `false` for local HTTP development — `Secure` cookies are not sent over plain HTTP.
@@ -176,7 +201,9 @@ COOKIE_SECURE=false                  # set true in production (requires HTTPS)
 
 | Property | Mechanism |
 |---|---|
-| Access token integrity | HS256 signature; rejected if tampered or expired |
+| Access token integrity | RS256 signature; Kong rejects invalid/expired tokens at the gateway |
+| Access token verification | Service re-verifies with public key (defense-in-depth) |
+| Private key isolation | Only the user service holds the private key; Kong and other services only need the public key |
 | Refresh token XSS resistance | `httpOnly` cookie — JavaScript cannot read the token |
 | Refresh token CSRF resistance | `SameSite=Strict` — cookie not sent on cross-site requests |
 | Refresh token secrecy | UUID is unguessable; only valid if present in Redis |
@@ -187,9 +214,9 @@ COOKIE_SECURE=false                  # set true in production (requires HTTPS)
 
 ## Alternatives Considered
 
+- **HS256 (symmetric) JWT** — simpler, single shared secret. Kong can verify with the secret, but the secret must be distributed to every service that verifies tokens — any service compromise exposes the signing key. RS256 limits that: only the user service has the private key; all verifiers hold only the public key.
 - **Stateless refresh tokens (signed JWT)** — no Redis dependency. Downside: impossible to revoke before expiry. A stolen refresh token would be valid for its full 7-day lifetime with no remedy. Stateful refresh tokens allow immediate revocation via logout or key rotation.
 - **Refresh token in response body** — simpler for mobile and non-browser clients, but exposes the token to JavaScript (XSS risk). The httpOnly cookie approach is implemented; mobile clients that can't use cookies can use an alternative endpoint or pass credentials differently.
 - **`SameSite=None` cookie** — required if the SPA is on a different origin (`https://app.example.com` → `https://api.example.com`). Allows cross-site requests but requires `Secure=true` and HTTPS. Change `SameSiteStrictMode` to `SameSiteNoneMode` in `issueTokenPair` and `Logout` for this case.
-- **`RS256` (asymmetric) JWT** — allows services to verify tokens using a public key without holding the signing secret. Only needed when downstream services verify JWTs themselves (no API gateway centralising auth), or when integrating with an external identity provider (Auth0, Keycloak). With an API gateway the gateway is the sole verifier, so `HS256` with a single secret stays correct regardless of how many downstream services exist.
-- **Separate `AuthService`** — implemented. `AuthService` owns `Register` and `Login`; `UserService` owns CRUD. Both share the same `model.UserRepository` instance, wired in bootstrap.
+- **Skip service-level JWT verification (trust Kong)** — Kong already verified the token; the service could simply parse (not verify) the JWT to extract claims. Saves one RSA operation per request. Not done: defense-in-depth is worth the cost, and the public key is already loaded at startup.
 - **Token reuse detection** — on refresh, if the presented token was already rotated (i.e., Redis miss), revoke all sessions for that user. Not implemented; requires storing a per-user session list in addition to per-token keys.

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crypto/rsa"
 	"net/http"
 	"time"
 
@@ -19,7 +20,7 @@ const refreshCookieName = "refresh_token"
 type AuthHandler struct {
 	service       *service.AuthService
 	tokenStore    token.Store
-	jwtSecret     string
+	privateKey    *rsa.PrivateKey
 	accessExpiry  time.Duration
 	refreshExpiry time.Duration
 	cookieSecure  bool
@@ -28,7 +29,7 @@ type AuthHandler struct {
 func NewAuthHandler(
 	svc *service.AuthService,
 	store token.Store,
-	jwtSecret string,
+	privateKey *rsa.PrivateKey,
 	accessExpiry time.Duration,
 	refreshExpiry time.Duration,
 	cookieSecure bool,
@@ -36,7 +37,7 @@ func NewAuthHandler(
 	return &AuthHandler{
 		service:       svc,
 		tokenStore:    store,
-		jwtSecret:     jwtSecret,
+		privateKey:    privateKey,
 		accessExpiry:  accessExpiry,
 		refreshExpiry: refreshExpiry,
 		cookieSecure:  cookieSecure,
@@ -141,7 +142,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 // persists the refresh token in Redis, sets it as an httpOnly cookie,
 // and returns the access token + expiry for the response body.
 func (h *AuthHandler) issueTokenPair(w http.ResponseWriter, r *http.Request, userID int) (map[string]any, error) {
-	accessToken, err := token.Generate(userID, h.jwtSecret, h.accessExpiry)
+	accessToken, err := token.Generate(userID, h.privateKey, h.accessExpiry)
 	if err != nil {
 		return nil, apperror.Internal(err)
 	}

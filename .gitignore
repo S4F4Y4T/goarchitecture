@@ -1,14 +1,51 @@
-# Build output
+# ── Build output ──────────────────────────────────────────────────────────────
 bin/
 
-# Air hot-reload
+# ── Air hot-reload ────────────────────────────────────────────────────────────
 tmp/
 build-errors.log
 
-# Environment
+# ── Environment ───────────────────────────────────────────────────────────────
 .env
 .env.*
 !.env.example
 
-# Go
+# ── Go ────────────────────────────────────────────────────────────────────────
 vendor/
+
+# Go test artifacts
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Go build cache (if ever written locally)
+*.exe
+*.exe~
+
+# ── Secrets & keys ───────────────────────────────────────────────────────────
+deploy/kong/jwt.key      # RSA private key — never commit
+*.pem
+*.key
+!*.key.pub               # public keys are safe to commit
+*.p12
+*.pfx
+*.crt
+*.csr
+
+# ── IDE & OS ──────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+!build-errors.log        # air writes this to tmp/, but list explicitly
+
+# ── k8s sensitive overlays ───────────────────────────────────────────────────
+deploy/k8s/**/secret*.yaml
+deploy/k8s/**/secrets*.yaml

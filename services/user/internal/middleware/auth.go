@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"crypto/rsa"
 	"net/http"
 	"strings"
 
@@ -14,7 +15,7 @@ type contextKey string
 
 const userIDKey contextKey = "user_id"
 
-func Auth(secret string) func(http.Handler) http.Handler {
+func Auth(publicKey *rsa.PublicKey) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -22,7 +23,7 @@ func Auth(secret string) func(http.Handler) http.Handler {
 				response.Error(w, r, apperror.Unauthorized("missing or invalid authorization header"))
 				return
 			}
-			userID, err := token.ParseUserID(strings.TrimPrefix(authHeader, "Bearer "), secret)
+			userID, err := token.ParseUserID(strings.TrimPrefix(authHeader, "Bearer "), publicKey)
 			if err != nil {
 				response.Error(w, r, apperror.Unauthorized("invalid or expired token"))
 				return

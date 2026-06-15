@@ -3,16 +3,17 @@ package main
 import (
 	"context"
 	"log/slog"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/bootstrap"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/config"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/router"
-	"github.com/s4f4y4t/go-microservice/pkg/logger"
 	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/s4f4y4t/go-microservice/pkg/logger"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/bootstrap"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/config"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/router"
 )
 
 func main() {
@@ -39,7 +40,7 @@ func main() {
 		defer rdb.Close()
 	}
 
-	handler := bootstrap.Register(db, rdb, cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, cfg.JWT.CookieSecure)
+	handler := bootstrap.Register(db, rdb, cfg.JWT.PrivateKey, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, cfg.JWT.CookieSecure)
 
 	mux := router.Register(handler, cfg, rdb)
 

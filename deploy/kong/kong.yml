@@ -1,6 +1,23 @@
 _format_version: "3.0"
 _transform: true
 
+consumers:
+  - username: app-users
+    jwt_secrets:
+      - algorithm: RS256
+        # key is the value that must appear in the JWT "iss" claim
+        key: go-microservice
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnaMsgnMmxwf2u0UbO+Ye
+          BoyCWDeLpciAWBZIo4JP/289TSheBKTo4amg5/UxMPgtakpEFxDFL+jZZG/4506Z
+          U1VH9O2CXgqN/wdOJYSr6c6LawlQcYANLw+Fv3q+gZwGG0MCwnoSf+jcH2EnUPM9
+          vd81qml8RKjCc2XM+kQ1ETZms69cVdqLehxXbLX6A8cuj3h/DpMw7JaD76MAdwzC
+          rZCDyJuZ0uo0+xzxkWJDyIi7M9D/ofeFHYkmDZ8R4LYkEehLeeRJmsSQrH6ug4d7
+          rfJVJUtkG93OQEewg2LUpcl49xXQlpfHSjlrLw0/NdkE1XgyfmNb5LstqZImdezc
+          oQIDAQAB
+          -----END PUBLIC KEY-----
+
 services:
   # ── User service ─────────────────────────────────────────────────────────────
   - name: user-service
@@ -9,14 +26,30 @@ services:
     read_timeout: 60000
     write_timeout: 60000
     routes:
-      - name: user-service-routes
+      # Protected routes — jwt plugin enforced
+      - name: user-service-users
         paths:
           - /v1/users
+        strip_path: false
+        preserve_host: false
+        protocols:
+          - http
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
+      # Public routes — no jwt plugin
+      - name: user-service-auth
+        paths:
           - /v1/auth
         strip_path: false
         preserve_host: false
         protocols:
           - http
+
     plugins:
       - name: cors
         config:
@@ -61,6 +94,13 @@ services:
         preserve_host: false
         protocols:
           - http
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
     plugins:
       - name: cors
         config:

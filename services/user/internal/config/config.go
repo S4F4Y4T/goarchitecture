@@ -1,6 +1,9 @@
 package config
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"log/slog"
 	"os"
@@ -46,7 +49,8 @@ type RateLimitConfig struct {
 }
 
 type JWTConfig struct {
-	Secret        string
+	PrivateKey    *rsa.PrivateKey
+	PublicKey     *rsa.PublicKey
 	AccessExpiry  time.Duration
 	RefreshExpiry time.Duration
 	CookieSecure  bool // set false in local HTTP dev; true in production (HTTPS required)
@@ -173,14 +177,61 @@ func loadRateLimitConfig() RateLimitConfig {
 }
 
 func loadJWTConfig() (JWTConfig, error) {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		return JWTConfig{}, fmt.Errorf("JWT_SECRET is required")
+	privPath := os.Getenv("JWT_PRIVATE_KEY_PATH")
+	if privPath == "" {
+		return JWTConfig{}, fmt.Errorf("JWT_PRIVATE_KEY_PATH is required")
 	}
+	pubPath := os.Getenv("JWT_PUBLIC_KEY_PATH")
+	if pubPath == "" {
+		return JWTConfig{}, fmt.Errorf("JWT_PUBLIC_KEY_PATH is required")
+	}
+
+	privateKey, err := loadPrivateKey(privPath)
+	if err != nil {
+		return JWTConfig{}, fmt.Errorf("loading JWT private key: %w", err)
+	}
+	publicKey, err := loadPublicKey(pubPath)
+	if err != nil {
+		return JWTConfig{}, fmt.Errorf("loading JWT public key: %w", err)
+	}
+
 	return JWTConfig{
-		Secret:        secret,
+		PrivateKey:    privateKey,
+		PublicKey:     publicKey,
 		AccessExpiry:  pkgconfig.GetEnvDuration("JWT_ACCESS_EXPIRY", 15*time.Minute),
 		RefreshExpiry: pkgconfig.GetEnvDuration("JWT_REFRESH_EXPIRY", 7*24*time.Hour),
 		CookieSecure:  pkgconfig.GetEnvBool("COOKIE_SECURE", true),
 	}, nil
+}
+
+func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block from %s", path)
+	}
+	return x509.ParsePKCS1PrivateKey(block.Bytes)
+}
+
+func loadPublicKey(path string) (*rsa.PublicKey, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block from %s", path)
+	}
+	key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	rsaKey, ok := key.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("not an RSA public key")
+	}
+	return rsaKey, nil
 }
