@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/s4f4y4t/go-microservice/pkg/logger"
+	"github.com/s4f4y4t/go-microservice/pkg/token"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/bootstrap"
 	deliveryrouter "github.com/s4f4y4t/go-microservice/services/user/internal/delivery/http/router"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/infrastructure/config"
@@ -40,7 +41,7 @@ func main() {
 		defer rdb.Close()
 	}
 
-	app := bootstrap.Register(db, rdb, cfg.JWT.PrivateKey, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, cfg.JWT.CookieSecure)
+	app := bootstrap.Register(db, rdb, token.NewRSAIssuer(cfg.JWT.PrivateKey), cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, cfg.JWT.CookieSecure)
 
 	mux := deliveryrouter.Register(app.UserHandler, app.AuthHandler, app.HealthHandler, cfg, rdb)
 

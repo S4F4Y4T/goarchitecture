@@ -42,7 +42,7 @@ func (s *UserService) Create(ctx context.Context, input port.CreateUserInput) (*
 		return nil, apperror.Conflict("email already exists")
 	}
 
-	return s.repo.Create(ctx, userDomain.New(input.Name, email, ""))
+	return s.repo.Create(ctx, userDomain.NewWithoutPassword(input.Name, email))
 }
 
 func (s *UserService) Update(ctx context.Context, id int, input port.UpdateUserInput) (*userDomain.User, error) {

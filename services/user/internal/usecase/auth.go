@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"crypto/rsa"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,7 +14,7 @@ import (
 type AuthService struct {
 	repo          userDomain.Repository
 	tokenStore    token.Store
-	privateKey    *rsa.PrivateKey
+	tokenIssuer   token.AccessIssuer
 	accessExpiry  time.Duration
 	refreshExpiry time.Duration
 }
@@ -25,14 +24,14 @@ var _ port.AuthUseCase = (*AuthService)(nil)
 func NewAuthService(
 	repo userDomain.Repository,
 	tokenStore token.Store,
-	privateKey *rsa.PrivateKey,
+	tokenIssuer token.AccessIssuer,
 	accessExpiry time.Duration,
 	refreshExpiry time.Duration,
 ) *AuthService {
 	return &AuthService{
 		repo:          repo,
 		tokenStore:    tokenStore,
-		privateKey:    privateKey,
+		tokenIssuer:   tokenIssuer,
 		accessExpiry:  accessExpiry,
 		refreshExpiry: refreshExpiry,
 	}
@@ -96,7 +95,7 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 }
 
 func (s *AuthService) issueTokenPair(ctx context.Context, userID int) (port.TokenPair, error) {
-	accessToken, err := token.Generate(userID, s.privateKey, s.accessExpiry)
+	accessToken, err := s.tokenIssuer.Issue(userID, s.accessExpiry)
 	if err != nil {
 		return port.TokenPair{}, apperror.Internal(err)
 	}
