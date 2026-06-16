@@ -3,10 +3,10 @@ package router
 import (
 	"net/http"
 
-	"github.com/s4f4y4t/go-microservice/services/user/internal/handler"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/auth"
 )
 
-func registerAuthRoutes(mux *http.ServeMux, h *handler.AuthHandler) {
+func registerAuthRoutes(mux *http.ServeMux, h *auth.AuthHandler) {
 	authMux := http.NewServeMux()
 
 	authMux.HandleFunc("POST /register", h.Register)

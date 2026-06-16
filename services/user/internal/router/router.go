@@ -5,14 +5,16 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	pkgmiddleware "github.com/s4f4y4t/go-microservice/pkg/middleware"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/auth"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/config"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/handler"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/health"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/user"
 )
 
 func Register(
-	userH *handler.UserHandler,
-	authH *handler.AuthHandler,
-	healthH *handler.HealthHandler,
+	userH *user.UserHandler,
+	authH *auth.AuthHandler,
+	healthH *health.Handler,
 	cfg *config.Config,
 	rdb *redis.Client,
 ) http.Handler {

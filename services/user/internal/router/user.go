@@ -3,10 +3,10 @@ package router
 import (
 	"net/http"
 
-	"github.com/s4f4y4t/go-microservice/services/user/internal/handler"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/user"
 )
 
-func registerUserRoutes(mux *http.ServeMux, h *handler.UserHandler, auth func(http.Handler) http.Handler) {
+func registerUserRoutes(mux *http.ServeMux, h *user.UserHandler, auth func(http.Handler) http.Handler) {
 	userMux := http.NewServeMux()
 
 	userMux.HandleFunc("GET /", h.GetAll)
