@@ -1,23 +1,19 @@
-package repository
+package persistence
 
 import (
 	"context"
 	"errors"
 	"strconv"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/s4f4y4t/go-microservice/pkg/apperror"
 	"github.com/s4f4y4t/go-microservice/pkg/pagination"
 	"github.com/s4f4y4t/go-microservice/pkg/query"
 	gormquery "github.com/s4f4y4t/go-microservice/pkg/query/gorm"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/model"
-
-	"github.com/jackc/pgx/v5/pgconn"
+	userDomain "github.com/s4f4y4t/go-microservice/services/user/internal/domain/user"
 	"gorm.io/gorm"
 )
 
-// isUniqueViolation reports whether err is a Postgres unique-constraint
-// violation (SQLSTATE 23505), so it can be surfaced as a Conflict instead of a
-// generic internal error.
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
@@ -27,21 +23,19 @@ type UserRepository struct {
 	db *gorm.DB
 }
 
-func NewUserRepository(db *gorm.DB) model.UserRepository {
-	return &UserRepository{
-		db: db,
-	}
+func NewUserRepository(db *gorm.DB) userDomain.Repository {
+	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) GetAllUsers(ctx context.Context, p pagination.Params, opts query.Options) ([]model.User, int64, error) {
+func (r *UserRepository) GetAll(ctx context.Context, p pagination.Params, opts query.Options) ([]userDomain.User, int64, error) {
 	var (
-		users []model.User
+		users []userDomain.User
 		total int64
 	)
-	if err := r.db.WithContext(ctx).Model(&model.User{}).Scopes(gormquery.Filters(opts)).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&userDomain.User{}).Scopes(gormquery.Filters(opts)).Count(&total).Error; err != nil {
 		return nil, 0, apperror.Internal(err)
 	}
-	if err := r.db.WithContext(ctx).Model(&model.User{}).
+	if err := r.db.WithContext(ctx).Model(&userDomain.User{}).
 		Scopes(gormquery.Filters(opts), gormquery.Sorts(opts)).
 		Offset(p.Offset()).Limit(p.Limit).Find(&users).Error; err != nil {
 		return nil, 0, apperror.Internal(err)
@@ -49,8 +43,8 @@ func (r *UserRepository) GetAllUsers(ctx context.Context, p pagination.Params, o
 	return users, total, nil
 }
 
-func (r *UserRepository) GetUserByID(ctx context.Context, id int) (*model.User, error) {
-	var user model.User
+func (r *UserRepository) GetByID(ctx context.Context, id int) (*userDomain.User, error) {
+	var user userDomain.User
 	if err := r.db.WithContext(ctx).First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.NotFound("user not found with id " + strconv.Itoa(id))
@@ -60,7 +54,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id int) (*model.User, 
 	return &user, nil
 }
 
-func (r *UserRepository) CreateUser(ctx context.Context, user *model.User) (*model.User, error) {
+func (r *UserRepository) Create(ctx context.Context, user *userDomain.User) (*userDomain.User, error) {
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
 		if isUniqueViolation(err) {
 			return nil, apperror.Conflict("email already exists")
@@ -70,8 +64,8 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *model.User) (*mod
 	return user, nil
 }
 
-func (r *UserRepository) UpdateUser(ctx context.Context, id int, user *model.User) (*model.User, error) {
-	res := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Updates(user)
+func (r *UserRepository) Update(ctx context.Context, id int, user *userDomain.User) (*userDomain.User, error) {
+	res := r.db.WithContext(ctx).Model(&userDomain.User{}).Where("id = ?", id).Updates(user)
 	if res.Error != nil {
 		if isUniqueViolation(res.Error) {
 			return nil, apperror.Conflict("email already exists")
@@ -84,8 +78,8 @@ func (r *UserRepository) UpdateUser(ctx context.Context, id int, user *model.Use
 	return user, nil
 }
 
-func (r *UserRepository) DeleteUser(ctx context.Context, id int) error {
-	res := r.db.WithContext(ctx).Delete(&model.User{}, id)
+func (r *UserRepository) Delete(ctx context.Context, id int) error {
+	res := r.db.WithContext(ctx).Delete(&userDomain.User{}, id)
 	if res.Error != nil {
 		return apperror.Internal(res.Error)
 	}
@@ -95,22 +89,22 @@ func (r *UserRepository) DeleteUser(ctx context.Context, id int) error {
 	return nil
 }
 
-func (r *UserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+func (r *UserRepository) ExistsByEmail(ctx context.Context, email userDomain.Email) (bool, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("email = ?", email).Count(&count).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&userDomain.User{}).Where("email = ?", email).Count(&count).Error; err != nil {
 		return false, apperror.Internal(err)
 	}
 	return count > 0, nil
 }
 
-func (r *UserRepository) WithTx(ctx context.Context, fn func(model.UserRepository) error) error {
+func (r *UserRepository) WithTx(ctx context.Context, fn func(userDomain.Repository) error) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return fn(&UserRepository{db: tx})
 	})
 }
 
-func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.User, error) {
-	var user model.User
+func (r *UserRepository) GetByEmail(ctx context.Context, email userDomain.Email) (*userDomain.User, error) {
+	var user userDomain.User
 	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.NotFound("user not found")

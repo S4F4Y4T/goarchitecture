@@ -5,27 +5,29 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/handler"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/repository"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/service"
+	deliveryhandler "github.com/s4f4y4t/go-microservice/services/user/internal/delivery/http/handler"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/infrastructure/cache"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/infrastructure/persistence"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/usecase"
 	"gorm.io/gorm"
 )
 
 type App struct {
-	UserHandler   *handler.UserHandler
-	AuthHandler   *handler.AuthHandler
-	HealthHandler *handler.HealthHandler
+	UserHandler   *deliveryhandler.UserHandler
+	AuthHandler   *deliveryhandler.AuthHandler
+	HealthHandler *deliveryhandler.HealthHandler
 }
 
 func Register(db *gorm.DB, rdb *redis.Client, privateKey *rsa.PrivateKey, accessExpiry, refreshExpiry time.Duration, cookieSecure bool) *App {
-	urepo := repository.NewUserRepository(db)
-	uservice := service.NewUserService(urepo)
-	aservice := service.NewAuthService(urepo)
-	tokenStore := repository.NewRedisTokenStore(rdb)
+	repo := persistence.NewUserRepository(db)
+	tokenStore := cache.NewRedisTokenStore(rdb)
+
+	authUC := usecase.NewAuthService(repo, tokenStore, privateKey, accessExpiry, refreshExpiry)
+	userUC := usecase.NewUserService(repo)
 
 	return &App{
-		UserHandler:   handler.NewUserHandler(uservice),
-		AuthHandler:   handler.NewAuthHandler(aservice, tokenStore, privateKey, accessExpiry, refreshExpiry, cookieSecure),
-		HealthHandler: handler.NewHealthHandler(db),
+		UserHandler:   deliveryhandler.NewUserHandler(userUC),
+		AuthHandler:   deliveryhandler.NewAuthHandler(authUC, cookieSecure),
+		HealthHandler: deliveryhandler.NewHealthHandler(db),
 	}
 }

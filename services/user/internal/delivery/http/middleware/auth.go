@@ -14,8 +14,6 @@ type contextKey string
 const userIDKey contextKey = "user_id"
 
 // Auth reads X-User-ID injected by Kong after JWT verification.
-// Kong strips any client-supplied X-User-ID before injecting its own,
-// so this header is trustworthy on the internal Docker network.
 func Auth() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

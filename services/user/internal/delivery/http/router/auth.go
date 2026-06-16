@@ -3,10 +3,10 @@ package router
 import (
 	"net/http"
 
-	"github.com/s4f4y4t/go-microservice/services/user/internal/handler"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/delivery/http/handler"
 )
 
-func RegisterAuthRoute(mux *http.ServeMux, h *handler.AuthHandler) *http.ServeMux {
+func registerAuthRoutes(mux *http.ServeMux, h *handler.AuthHandler) {
 	authMux := http.NewServeMux()
 
 	authMux.HandleFunc("POST /register", h.Register)
@@ -15,5 +15,4 @@ func RegisterAuthRoute(mux *http.ServeMux, h *handler.AuthHandler) *http.ServeMu
 	authMux.HandleFunc("POST /logout", h.Logout)
 
 	mux.Handle("/auth/", http.StripPrefix("/auth", authMux))
-	return mux
 }

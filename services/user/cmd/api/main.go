@@ -12,8 +12,8 @@ import (
 
 	"github.com/s4f4y4t/go-microservice/pkg/logger"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/bootstrap"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/config"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/router"
+	deliveryrouter "github.com/s4f4y4t/go-microservice/services/user/internal/delivery/http/router"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/infrastructure/config"
 )
 
 func main() {
@@ -40,9 +40,9 @@ func main() {
 		defer rdb.Close()
 	}
 
-	handler := bootstrap.Register(db, rdb, cfg.JWT.PrivateKey, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, cfg.JWT.CookieSecure)
+	app := bootstrap.Register(db, rdb, cfg.JWT.PrivateKey, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, cfg.JWT.CookieSecure)
 
-	mux := router.Register(handler, cfg, rdb)
+	mux := deliveryrouter.Register(app.UserHandler, app.AuthHandler, app.HealthHandler, cfg, rdb)
 
 	srv := &http.Server{
 		Addr:           ":" + strconv.Itoa(cfg.Port),

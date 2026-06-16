@@ -541,6 +541,25 @@ func (r *UserReadRepo) GetAll(ctx context.Context, p pagination.Params) ([]dto.U
 
 ---
 
+## Concept Categories
+
+| Concept        | Category                         |
+| -------------- | -------------------------------- |
+| Layered        | Structural Architecture          |
+| Clean          | Structural Architecture          |
+| Hexagonal      | Structural Architecture          |
+| Onion          | Structural Architecture          |
+| Vertical Slice | Structural Architecture          |
+| DDD            | Domain Modeling Discipline       |
+| CQRS           | Architectural Pattern            |
+| Event Sourcing | Persistence Pattern              |
+| Event-Driven   | Architectural Style              |
+| Saga           | Distributed Transaction Pattern  |
+| Microservices  | System Architecture              |
+| Monolith       | System Architecture              |
+
+---
+
 ## Decision Guide
 
 | Situation | Recommended |
@@ -562,6 +581,21 @@ Layered + DI  →  add DDD tactical patterns  →  add CQRS for read paths
 Clean Architecture and Hexagonal Architecture are structural overlays — they can sit on top of any of the above.
 
 ---
+
+| Concept        | Category                         |
+| -------------- | -------------------------------- |
+| Layered        | Structural Architecture          |
+| Clean          | Structural Architecture          |
+| Hexagonal      | Structural Architecture          |
+| Vertical Slice | Structural Architecture          |
+| DDD            | Domain Modeling Discipline       |
+| CQRS           | Architectural/Data Pattern       |
+| Event Sourcing | Persistence Pattern              |
+| Event-Driven   | Communication Pattern            |
+| Saga           | Distributed Coordination Pattern |
+| Microservices  | System Architecture              |
+| Monolith       | System Architecture              |
+
 
 ## Where This Service Could Go Next
 

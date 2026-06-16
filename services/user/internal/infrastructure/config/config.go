@@ -23,17 +23,13 @@ type DBConfig struct {
 	Name     string
 	SSLMode  string
 
-	// Connection pool tuning. See database.go for how these are applied to the
-	// underlying *sql.DB.
-	MaxOpenConns    int           // hard cap on total open connections
-	MaxIdleConns    int           // connections kept ready in the idle pool
-	ConnMaxLifetime time.Duration // recycle a connection after this age
-	ConnMaxIdleTime time.Duration // close a connection idle for this long
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
+	ConnMaxIdleTime time.Duration
 }
 
 type CORSConfig struct {
-	// AllowedOrigins lists the origins allowed to make cross-origin requests.
-	// A single "*" entry allows any origin.
 	AllowedOrigins []string
 }
 
@@ -49,24 +45,22 @@ type RateLimitConfig struct {
 }
 
 type JWTConfig struct {
-	PrivateKey    *rsa.PrivateKey // signs access tokens on login/refresh
+	PrivateKey    *rsa.PrivateKey
 	AccessExpiry  time.Duration
 	RefreshExpiry time.Duration
-	CookieSecure  bool // set false in local HTTP dev; true in production (HTTPS required)
+	CookieSecure  bool
 }
 
 type Config struct {
 	Port      int
 	DB        DBConfig
 	CORS      CORSConfig
-	Redis     *RedisConfig // nil when REDIS_ADDR is unset; rate limiting is disabled
+	Redis     *RedisConfig
 	RateLimit RateLimitConfig
 	JWT       JWTConfig
 }
 
 func LoadConfig() (*Config, error) {
-
-	// best-effort — in Docker env vars come from the container environment
 	_ = godotenv.Load()
 
 	portInt := pkgconfig.GetEnvInt("PORT", 0)
@@ -94,9 +88,6 @@ func LoadConfig() (*Config, error) {
 	}, nil
 }
 
-// loadCORSConfig reads CORS_ALLOWED_ORIGINS as a comma-separated list of
-// origins (e.g. "https://app.example.com,https://admin.example.com"),
-// defaulting to "*" when unset.
 func loadCORSConfig() CORSConfig {
 	raw := os.Getenv("CORS_ALLOWED_ORIGINS")
 	if raw == "" {
