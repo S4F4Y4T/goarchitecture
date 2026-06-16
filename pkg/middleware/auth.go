@@ -9,8 +9,6 @@ import (
 	"github.com/s4f4y4t/go-microservice/pkg/response"
 )
 
-type contextKey string
-
 const userIDKey contextKey = "user_id"
 
 // Auth reads X-User-ID injected by Kong after JWT verification.

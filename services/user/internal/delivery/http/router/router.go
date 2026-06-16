@@ -6,7 +6,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	pkgmiddleware "github.com/s4f4y4t/go-microservice/pkg/middleware"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/delivery/http/handler"
-	svcmiddleware "github.com/s4f4y4t/go-microservice/services/user/internal/delivery/http/middleware"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/infrastructure/config"
 )
 
@@ -20,7 +19,7 @@ func Register(
 	mux := http.NewServeMux()
 
 	v1 := http.NewServeMux()
-	registerUserRoutes(v1, userH, svcmiddleware.Auth())
+	registerUserRoutes(v1, userH, pkgmiddleware.Auth())
 	registerAuthRoutes(v1, authH)
 
 	mux.Handle("/v1/", http.StripPrefix("/v1", v1))
