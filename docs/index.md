@@ -33,4 +33,5 @@ Design decision docs for this Go microservice project. Each doc covers the **wha
 | API Gateway | [api-gateway.md](api-gateway.md) | Kong DB-less mode, routing, CORS/rate-limit/correlation-ID plugins |
 | API Docs (Swagger UI) | [api-docs.md](api-docs.md) | Dedicated docs service, single combined spec, served through Kong |
 | Internal Architecture & Alternatives | [internal-architecture.md](internal-architecture.md) | Layered vs Clean vs Hexagonal vs Vertical Slice vs DDD vs CQRS — when to choose which |
+| User Service — Clean Architecture & DDD | [user-service-architecture.md](user-service-architecture.md) | Layer map, DDD patterns in use, what is not DDD, and concrete improvement suggestions |
 | **Roadmap** | [next.md](next.md) | Phase-by-phase checklist for large-scale production (auth, gRPC, Kafka, k8s, observability…) |

@@ -1,10 +1,6 @@
 package user
 
-import (
-	"time"
-
-	"github.com/s4f4y4t/go-microservice/pkg/query"
-)
+import "time"
 
 type User struct {
 	ID        int      `json:"id"`
@@ -23,12 +19,4 @@ func New(name string, email Email, password Password) *User {
 		Email:    email,
 		Password: password,
 	}
-}
-
-var ListSchema = query.Schema{
-	"id":         {Column: "id", Sortable: true, Filterable: true},
-	"name":       {Column: "name", Sortable: true, Filterable: true, Partial: true},
-	"email":      {Column: "email", Sortable: true, Filterable: true, Partial: true},
-	"created_at": {Column: "created_at", Sortable: true},
-	"updated_at": {Column: "updated_at", Sortable: true},
 }

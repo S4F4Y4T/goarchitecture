@@ -11,10 +11,17 @@ import (
 	"github.com/s4f4y4t/go-microservice/pkg/request"
 	"github.com/s4f4y4t/go-microservice/pkg/response"
 	"github.com/s4f4y4t/go-microservice/pkg/validation"
-	userDomain "github.com/s4f4y4t/go-microservice/services/user/internal/domain/user"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/dto"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/usecase/port"
 )
+
+var userListSchema = query.Schema{
+	"id":         {Column: "id", Sortable: true, Filterable: true},
+	"name":       {Column: "name", Sortable: true, Filterable: true, Partial: true},
+	"email":      {Column: "email", Sortable: true, Filterable: true, Partial: true},
+	"created_at": {Column: "created_at", Sortable: true},
+	"updated_at": {Column: "updated_at", Sortable: true},
+}
 
 type UserHandler struct {
 	useCase port.UserUseCase
@@ -30,7 +37,7 @@ func (h *UserHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(queryParams.Get("page"))
 	limit, _ := strconv.Atoi(queryParams.Get("limit"))
 	params := pagination.NewParams(page, limit)
-	opts := query.Parse(queryParams, userDomain.ListSchema)
+	opts := query.Parse(queryParams, userListSchema)
 
 	logger.FromContext(r.Context()).Debug("fetching users", "page", params.Page, "limit", params.Limit)
 
