@@ -2,11 +2,12 @@
 
 ## Purpose
 
-Handlers translate HTTP requests into service calls and HTTP responses. They are the only layer that knows about HTTP.
+Handlers translate HTTP requests into service calls and HTTP responses. They are the only layer that knows about HTTP. Each feature module owns its own handler file (e.g. `internal/user/handler.go`).
 
 ```go
+// internal/user/handler.go
 type UserHandler struct {
-    service *service.UserService
+    service *UserService
 }
 ```
 
@@ -24,11 +25,11 @@ Every handler follows the same steps:
 
 Error at any step → `response.Error(w, r, err)` → returns. Never falls through.
 
-## Example: CreateUser
+## Example: Create
 
 ```go
-func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-    var req dto.CreateUserRequest
+func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
+    var req CreateUserRequest
     if err := request.DecodeJSON(w, r, &req); err != nil {
         response.Error(w, r, err)
         return
@@ -37,29 +38,27 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
         response.Error(w, r, err)
         return
     }
-    user, err := h.service.CreateUser(r.Context(), &model.User{
-        Name: req.Name, Email: req.Email,
-    })
+    u, err := h.service.Create(r.Context(), req)
     if err != nil {
         response.Error(w, r, err)
         return
     }
-    response.Success(w, http.StatusCreated, "User created successfully", user)
+    response.Success(w, http.StatusCreated, "User created successfully", u)
 }
 ```
 
 ## List Handler: Query Parsing
 
-`GetAllUsers` also parses pagination and query options from URL params:
+`GetAll` also parses pagination and query options from URL params:
 
 ```go
 page  := parseIntParam(r, "page", 1)
 limit := parseIntParam(r, "limit", 10)
 params := pagination.NewParams(page, limit)
 
-opts := query.Parse(r.URL.Query(), model.UserListSchema)
+opts := query.Parse(r.URL.Query(), ListSchema)
 
-users, total, err := h.service.GetAllUsers(r.Context(), params, opts)
+users, total, err := h.service.GetAll(r.Context(), params, opts)
 // ...
 meta := pagination.NewMeta(params, total)
 response.SuccessWithMeta(w, http.StatusOK, "Users retrieved", users, meta)
@@ -94,10 +93,9 @@ Read operations (GET) are not logged by the handler — the access log from the 
 ## Path Parameter Parsing
 
 ```go
-idStr := r.PathValue("id")
-id, err := strconv.ParseUint(idStr, 10, 64)
+id, err := strconv.Atoi(r.PathValue("id"))
 if err != nil {
-    response.Error(w, r, apperror.InvalidInput("invalid user ID"))
+    response.Error(w, r, apperror.InvalidInput("invalid user id"))
     return
 }
 ```

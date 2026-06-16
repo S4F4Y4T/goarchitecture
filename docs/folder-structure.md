@@ -30,17 +30,15 @@
 ├── scripts/
 │   └── migrate.sh         # migration wrapper CLI
 ├── services/
-│   ├── user/              # user service module
+│   ├── user/              # user service module (modular monolith — package-by-feature)
 │   │   ├── cmd/api/main.go
 │   │   ├── internal/
-│   │   │   ├── bootstrap/ # DI wiring
+│   │   │   ├── bootstrap/ # composition root: wires modules together
 │   │   │   ├── config/    # service-specific config + DB/Redis setup
-│   │   │   ├── dto/       # request DTOs
-│   │   │   ├── handler/   # HTTP handlers
-│   │   │   ├── model/     # domain model + repository interface
-│   │   │   ├── repository/# GORM implementation
-│   │   │   ├── router/    # route registration
-│   │   │   └── service/   # business logic
+│   │   │   ├── user/      # feature module: model, repository, service, handler, dto
+│   │   │   ├── auth/      # feature module: dto, handler, service, token store
+│   │   │   ├── health/    # feature module: liveness/readiness handler
+│   │   │   └── router/    # route registration
 │   │   ├── .air.toml
 │   │   └── go.mod
 │   ├── catalog/           # catalog service (identical structure)

@@ -2,21 +2,22 @@
 
 ## Purpose
 
-The service layer is where **business logic** lives. It sits between the handler (HTTP) and the repository (database), orchestrating domain rules that go beyond simple CRUD.
+The service is where **business logic** lives, inside each feature module (e.g. `internal/user/service.go`). It sits between the module's handler (HTTP) and its repository (database), orchestrating domain rules that go beyond simple CRUD.
 
 ```go
+// internal/user/service.go
 type UserService struct {
-    repo model.UserRepository
+    repo Repository
 }
 ```
 
-The service depends on `model.UserRepository` (the interface), not on the concrete GORM implementation.
+The service depends on `Repository` (the interface defined in `internal/user/model.go`), not on the concrete GORM implementation. The `auth` module's service follows the same pattern but defines its own narrower interface, `auth.UserLookup`, rather than depending on the full `user.Repository` — see [internal-architecture.md](internal-architecture.md).
 
 ## What Business Logic Belongs Here
 
 - **Pre-create uniqueness check**: before inserting a user, check if the email already exists and return a clear `CONFLICT` error. (The database constraint is still the ultimate enforcer, but checking first gives a better error message.)
 - **Pre-update uniqueness check**: when updating a user's email, check if the new email belongs to a *different* user. If the email hasn't changed, no check is needed.
-- **Fetching current state before update**: `UpdateUser` fetches the current user, compares emails, then calls the repository's update. This ensures the service has access to the current state without trusting the handler to provide it.
+- **Fetching current state before update**: `Update` fetches the current user, compares emails, then calls the repository's update. This ensures the service has access to the current state without trusting the handler to provide it.
 
 ## What Doesn't Belong Here
 
@@ -29,8 +30,8 @@ The service depends on `model.UserRepository` (the interface), not on the concre
 Some service methods are simple delegations to the repository:
 
 ```go
-func (s *UserService) GetUserByID(ctx context.Context, id uint) (*model.User, error) {
-    return s.repo.GetUserByID(ctx, id)
+func (s *UserService) GetByID(ctx context.Context, id int) (*User, error) {
+    return s.repo.GetByID(ctx, id)
 }
 ```
 

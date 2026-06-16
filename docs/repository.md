@@ -2,19 +2,20 @@
 
 ## Purpose
 
-The repository is the **only place in the codebase that talks to the database**. It implements the `UserRepository` interface (defined in the model package) using GORM.
+The repository is the **only place in the codebase that talks to the database**. Each feature module owns its own repository file (e.g. `internal/user/repository.go`) implementing the `Repository` interface defined alongside it in the same module (`internal/user/model.go`), using GORM.
 
 ```go
+// internal/user/repository.go
 type UserRepository struct {
     db *gorm.DB
 }
 
-func NewUserRepository(db *gorm.DB) model.UserRepository {
+func NewUserRepository(db *gorm.DB) Repository {
     return &UserRepository{db: db}
 }
 ```
 
-The return type is `model.UserRepository` (the interface), not `*UserRepository` (the concrete type). This ensures the caller can only use the repository through the interface.
+The return type is `Repository` (the interface), not `*UserRepository` (the concrete type). This ensures the caller can only use the repository through the interface.
 
 ## ORM: GORM
 
@@ -50,22 +51,22 @@ func isUniqueViolation(err error) bool {
 
 Postgres error code `23505` is the standard unique_violation code. Checking this specifically (rather than `err.Error()` string matching) is robust against Postgres version changes and locale differences.
 
-### DeleteUser: Rows Affected Check
+### Delete: Rows Affected Check
 
 ```go
-result := db.Delete(&model.User{}, id)
-if result.RowsAffected == 0 {
+res := db.Delete(&User{}, id)
+if res.RowsAffected == 0 {
     return apperror.NotFound("user not found")
 }
 ```
 
 GORM's `Delete` does not return `gorm.ErrRecordNotFound` — it succeeds with zero rows affected if the ID doesn't exist. We check `RowsAffected` explicitly to distinguish "deleted" from "not found."
 
-### GetAllUsers: Two-Phase Query
+### GetAll: Two-Phase Query
 
 ```go
-db.Model(&model.User{}).Scopes(filters).Count(&total)
-db.Model(&model.User{}).Scopes(filters, sorts).Limit(limit).Offset(offset).Find(&users)
+db.Model(&User{}).Scopes(filters).Count(&total)
+db.Model(&User{}).Scopes(filters, sorts).Limit(limit).Offset(offset).Find(&users)
 ```
 
 Two queries:

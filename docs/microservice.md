@@ -20,22 +20,19 @@ Services never reach into another service's database. If the user service needs 
 
 ## Service Structure
 
-Every service follows the same internal layout:
+Every service is internally a **Modular Monolith** — package-by-feature, not package-by-layer. See [internal-architecture.md](internal-architecture.md) for the full rationale.
 
 ```
 cmd/api/main.go      entry point
 internal/
-  bootstrap/         dependency injection wiring
+  bootstrap/         composition root — wires each feature module together
   config/            env-var loading, DB + Redis setup
-  dto/               request/response shapes
-  handler/           HTTP layer (decode → validate → service → respond)
-  model/             domain structs + repository interface
-  repository/        GORM implementation of the interface
+  <feature>/          one package per feature (e.g. user/, auth/, health/)
+                      each owns its own model, repository, service, handler, dto
   router/            route registration + middleware chain
-  service/           business logic
 ```
 
-This identical structure means moving between services has zero context-switch overhead.
+This identical top-level shape (`bootstrap/`, `config/`, one package per feature, `router/`) means moving between services has zero context-switch overhead, even though the specific feature modules inside differ per service.
 
 ## Service Boundaries
 

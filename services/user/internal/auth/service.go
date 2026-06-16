@@ -18,8 +18,18 @@ type TokenPair struct {
 	RefreshExpiresIn int
 }
 
+// UserLookup is the slice of user.Repository that auth actually needs.
+// Owning this interface here, instead of depending on the full
+// user.Repository, keeps auth's coupling to the user module explicit and
+// minimal — any user.Repository implementation already satisfies it.
+type UserLookup interface {
+	ExistsByEmail(ctx context.Context, email string) (bool, error)
+	GetByEmail(ctx context.Context, email string) (*user.User, error)
+	Create(ctx context.Context, u *user.User) (*user.User, error)
+}
+
 type AuthService struct {
-	repo          user.Repository
+	repo          UserLookup
 	tokenStore    token.Store
 	tokenIssuer   token.AccessIssuer
 	accessExpiry  time.Duration
@@ -27,7 +37,7 @@ type AuthService struct {
 }
 
 func NewAuthService(
-	repo user.Repository,
+	repo UserLookup,
 	tokenStore token.Store,
 	tokenIssuer token.AccessIssuer,
 	accessExpiry time.Duration,

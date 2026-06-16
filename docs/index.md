@@ -1,4 +1,4 @@
-A monorepo-based microservices architecture using Layered Architecture (Handler-Service-Repository) with independent Go modules.
+A monorepo-based microservices architecture where each service is internally a Modular Monolith (package-by-feature) with independent Go modules.
 
 # Documentation Index
 
@@ -32,6 +32,6 @@ Design decision docs for this Go microservice project. Each doc covers the **wha
 | Docker & Containerization | [docker.md](docker.md) | Dev images, docker-compose, port strategy, health checks |
 | API Gateway | [api-gateway.md](api-gateway.md) | Kong DB-less mode, routing, CORS/rate-limit/correlation-ID plugins |
 | API Docs (Swagger UI) | [api-docs.md](api-docs.md) | Dedicated docs service, single combined spec, served through Kong |
-| Internal Architecture & Alternatives | [internal-architecture.md](internal-architecture.md) | Layered vs Clean vs Hexagonal vs Vertical Slice vs DDD vs CQRS — when to choose which |
-| User Service — Clean Architecture & DDD | [user-service-architecture.md](user-service-architecture.md) | Layer map, DDD patterns in use, what is not DDD, and concrete improvement suggestions |
+| Internal Architecture & Alternatives | [internal-architecture.md](internal-architecture.md) | Modular Monolith (chosen) vs Layered vs Clean vs Hexagonal vs DDD vs CQRS — when to choose which |
+| User Service — Modular Monolith | [user-service-architecture.md](user-service-architecture.md) | Module map (user/auth/health), the auth→user coupling to watch, DDD-lite rationale, improvement suggestions |
 | **Roadmap** | [next.md](next.md) | Phase-by-phase checklist for large-scale production (auth, gRPC, Kafka, k8s, observability…) |

@@ -85,7 +85,7 @@ type Store interface {
 
 The interface lives in `pkg` so any future service can plug in its own Redis client without importing the user service.
 
-## Redis Token Store (`services/user/internal/repository/token.go`)
+## Redis Token Store (`services/user/internal/auth/token_store.go`)
 
 The concrete implementation stores refresh tokens in Redis with a TTL:
 
@@ -99,7 +99,7 @@ SET refresh:<uuid>  <userID>  EX <refreshExpiry>
 
 Redis key expiry is the enforcement mechanism for refresh token lifetime. No separate cleanup job is needed.
 
-## Auth Middleware (`services/user/internal/middleware/auth.go`)
+## Auth Middleware (`pkg/middleware/auth.go`)
 
 Protects routes that require a logged-in user:
 
@@ -123,7 +123,7 @@ Applied at the route group level, not per-handler:
 mux.Handle("/users/", auth(http.StripPrefix("/users", userMux)))
 ```
 
-## Auth Handler (`services/user/internal/handler/auth.go`)
+## Auth Handler (`services/user/internal/auth/handler.go`)
 
 ### Register
 

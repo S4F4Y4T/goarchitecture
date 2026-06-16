@@ -1,46 +1,30 @@
-# User Service — Clean Architecture & DDD
+# User Service — Modular Monolith
 
-## Is It Clean Architecture?
+## What This Service Actually Is
 
-**Yes.** The user service fully implements Clean Architecture with an additional DDD domain modelling layer on top. This is not the "Layered + DI at repo boundary" pattern described in `internal-architecture.md` as the baseline — it goes further.
-
-The key upgrade: **every layer boundary is protected by an interface**, not just the repository boundary.
+The user service is a **Modular Monolith**: one deployable binary containing two feature modules — `user` (CRUD) and `auth` (registration/login/token lifecycle) — plus a small `health` module, wired together by a single composition root (`internal/bootstrap/app.go`).
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│  Delivery  (internal/delivery/http/)                       │
-│  handler/ · router/ · middleware/                          │
-│  Depends on: port.AuthUseCase, port.UserUseCase            │
-└────────────────────────┬───────────────────────────────────┘
-                         │ via interface (usecase/port/)
-┌────────────────────────▼───────────────────────────────────┐
-│  Use Case  (internal/usecase/)                             │
-│  AuthService · UserService                                 │
-│  Depends on: domain.Repository, token.Store (interfaces)  │
-└────────────────────────┬───────────────────────────────────┘
-                         │ via interface (domain/user/repository.go)
-┌────────────────────────▼───────────────────────────────────┐
-│  Domain  (internal/domain/user/)                           │
-│  User entity · Email VO · Password VO · Repository iface  │
-│  Zero framework imports                                    │
-└────────────────────────┬───────────────────────────────────┘
-                         │ implemented by
-┌────────────────────────▼───────────────────────────────────┐
-│  Infrastructure  (internal/infrastructure/)                │
-│  persistence/ (GORM) · cache/ (Redis) · config/           │
-└────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  router/  (net/http ServeMux + middleware chain)      │
+└───────┬───────────────────┬────────────────┬──────────┘
+        │                   │                │
+┌───────▼──────┐   ┌────────▼──────┐  ┌──────▼──────┐
+│  user/        │   │  auth/        │  │  health/    │
+│  handler.go   │   │  handler.go   │  │  handler.go │
+│  service.go   │   │  service.go   │  │             │
+│  repository.go│   │  token_store.go│ │             │
+│  model.go     │   │  dto.go        │  │             │
+│  dto.go       │   │               │  │             │
+└──────┬────────┘   └──────┬────────┘  └─────────────┘
+       │ Repository iface  │ auth.UserLookup iface
+       │                   │ (satisfied by user.Repository)
+┌──────▼───────────────────▼─────┐
+│   Postgres (GORM)  ·  Redis     │
+└──────────────────────────────────┘
 ```
 
-### The Dependency Rule
-
-Every arrow points inward. No inner layer imports from an outer layer.
-
-| Layer | Imports | Never imports |
-|---|---|---|
-| Domain | `pkg/query`, `pkg/pagination` only | usecase, delivery, infrastructure |
-| Use Case | domain interfaces, `pkg/*` | GORM, Redis, `net/http` |
-| Delivery | `usecase/port` interfaces, `pkg/*` | concrete use case structs, GORM |
-| Infrastructure | domain interfaces, GORM, Redis | delivery, usecase |
+Each module owns its own model, repository, service, and handler — there is no service-wide `model/`, `repository/`, `service/`, `handler/` split. `bootstrap.Register` is the only place that knows about every module at once; it constructs the shared `user.Repository` and hands it to both `user.NewUserService` and `auth.NewAuthService`.
 
 ---
 
@@ -48,219 +32,117 @@ Every arrow points inward. No inner layer imports from an outer layer.
 
 ```
 services/user/
-├── cmd/api/main.go                        # entry point — boot only
+├── cmd/api/main.go             # entry point — boot only
 └── internal/
     ├── bootstrap/
-    │   └── app.go                         # manual DI: wires all layers
-    ├── domain/
-    │   └── user/
-    │       ├── user.go                    # User entity + New() constructor
-    │       ├── email.go                   # Email value object (validates on construction)
-    │       ├── password.go                # Password value object (bcrypt on construction)
-    │       └── repository.go             # Repository interface (owned by domain)
-    ├── usecase/
-    │   ├── port/
-    │   │   ├── auth.go                    # AuthUseCase interface + input/output types
-    │   │   └── user.go                    # UserUseCase interface + input/output types
-    │   ├── auth.go                        # AuthService: Register, Login, Refresh, Logout
-    │   └── user.go                        # UserService: CRUD + transactional update
-    ├── delivery/
-    │   └── http/
-    │       ├── handler/
-    │       │   ├── auth.go                # decodes HTTP → calls AuthUseCase interface
-    │       │   ├── user.go                # decodes HTTP → calls UserUseCase interface
-    │       │   └── health.go
-    │       ├── middleware/
-    │       │   └── auth.go                # reads X-User-ID from Kong → context
-    │       └── router/
-    │           ├── router.go
-    │           ├── auth.go
-    │           └── user.go
-    ├── dto/
-    │   └── user.go                        # HTTP request shapes (separate from domain)
-    └── infrastructure/
-        ├── persistence/
-        │   └── user_repository.go         # GORM impl of domain.Repository
-        ├── cache/
-        │   └── token_store.go            # Redis impl of token.Store
-        └── config/
-            ├── config.go
-            ├── database.go
-            └── redis.go
+    │   └── app.go              # composition root: builds repo, services, handlers
+    ├── config/
+    │   ├── config.go
+    │   ├── database.go
+    │   └── redis.go
+    ├── user/
+    │   ├── model.go            # User struct + Repository interface + ListSchema
+    │   ├── repository.go       # GORM impl of Repository
+    │   ├── service.go          # CRUD + transactional Update
+    │   ├── handler.go          # GetAll, GetByID, Create, Update, Delete
+    │   └── dto.go               # CreateUserRequest, UpdateUserRequest
+    ├── auth/
+    │   ├── dto.go               # RegisterDTO, LoginDTO
+    │   ├── handler.go           # Register, Login, Refresh, Logout
+    │   ├── service.go           # bcrypt hash/compare, token issue/rotate
+    │   └── token_store.go       # Redis impl of token.Store (refresh tokens)
+    ├── health/
+    │   └── handler.go           # Live, Ready
+    └── router/
+        ├── router.go
+        ├── auth.go
+        └── user.go
 ```
 
 ---
 
-## How DDD Contributes
+## The `user` Module
 
-DDD tactical patterns are applied at the domain layer. This is what makes the user service richer than plain Clean Architecture.
-
-### Value Objects
-
-Both `Email` and `Password` are typed strings that enforce their own invariants on construction. Invalid state is impossible to represent once past the constructor.
-
-**Email** — validates RFC 5322 format via `mail.ParseAddress`. Implements `driver.Value` / `Scan` for transparent DB round-tripping and custom JSON marshalling.
+`internal/user/model.go` defines both the `User` struct and the `Repository` interface in the same package:
 
 ```go
-// Invalid email cannot exist as a domain value
-email, err := user.NewEmail("not-an-email")  // returns error immediately
-// If err == nil, email is guaranteed valid for its entire lifetime
-```
+type User struct {
+    ID        int
+    Name      string
+    Email     string
+    Password  string `json:"-"`
+    CreatedAt time.Time
+    UpdatedAt time.Time
+}
 
-**Password** — runs bcrypt on construction. The raw string never survives past `NewPassword`. JSON marshalling always emits `null`, preventing accidental leakage in API responses.
-
-```go
-password, err := user.NewPassword("plaintext")  // hashed immediately, plain discarded
-password.Matches("plaintext")                   // compare without ever exposing the hash
-```
-
-These are DDD value objects in the strictest sense: identity-free, immutable after construction, carry their own invariants.
-
-### Entity
-
-`User` is the entity. It has identity (`ID`), can change over time, and is compared by identity rather than value. The `New()` constructor is the only way to create a valid user — it requires both an `Email` and `Password` value object, so a user cannot be constructed with an unvalidated email or a plaintext password.
-
-```go
-func New(name string, email Email, password Password) *User
-```
-
-### Repository Interface in Domain
-
-`domain/user/repository.go` defines the `Repository` interface. The domain owns the contract; infrastructure conforms to it. This is the Repository pattern as described by Evans — a collection-like abstraction that makes the domain ignorant of persistence mechanics.
-
-```go
-// Domain defines what it needs
 type Repository interface {
     GetByID(ctx context.Context, id int) (*User, error)
+    GetAll(ctx context.Context, p pagination.Params, opts query.Options) ([]User, int64, error)
     Create(ctx context.Context, user *User) (*User, error)
+    Update(ctx context.Context, id int, user *User) (*User, error)
+    Delete(ctx context.Context, id int) error
+    ExistsByEmail(ctx context.Context, email string) (bool, error)
+    GetByEmail(ctx context.Context, email string) (*User, error)
     WithTx(ctx context.Context, fn func(Repository) error) error
-    // ...
 }
 ```
 
-`infrastructure/persistence/user_repository.go` implements this with GORM. The domain never sees GORM.
+`internal/user/repository.go` implements `Repository` with GORM (`UserRepository`). The module owns the contract; the implementation just has to conform to it — this is the one place dependency-inversion is applied.
 
-### Use Case Ports
-
-`usecase/port/` defines the inbound interfaces (`AuthUseCase`, `UserUseCase`) that handlers depend on. Handlers never import the concrete `AuthService` or `UserService` structs. This is the Ports and Adapters pattern applied to the use case boundary.
-
-```go
-// handler/auth.go depends only on this interface
-type AuthUseCase interface {
-    Register(ctx context.Context, input RegisterInput) (*user.User, error)
-    Login(ctx context.Context, input LoginInput) (TokenPair, error)
-    Refresh(ctx context.Context, refreshToken string) (TokenPair, error)
-    Logout(ctx context.Context, refreshToken string) error
-}
-```
-
-### What the Use Cases Own
-
-Use cases orchestrate domain objects but contain no business rules of their own — rules live in the domain. The split is:
-
-| Concern | Where it lives |
-|---|---|
-| Email format is valid | `domain/user/email.go` — `NewEmail()` |
-| Password must be hashed | `domain/user/password.go` — `NewPassword()` |
-| Password matches stored hash | `domain/user/password.go` — `Password.Matches()` |
-| Email uniqueness | `usecase/auth.go` — checks via repository before creating |
-| Token generation and rotation | `usecase/auth.go` — orchestrates `token.Generate` + `tokenStore` |
-| Transactional read-modify-write | `usecase/user.go` — `Update()` uses `repo.WithTx` |
+`User` is an **anemic** struct: no methods, no invariants, no value objects. Uniqueness checks and update orchestration live in `internal/user/service.go`, not on the model. That's a deliberate simplification for CRUD-heavy code, not an oversight — see "What's Missing for DDD" below.
 
 ---
 
-## What Is NOT DDD (and Why That Is Fine)
+## The `auth` Module
 
-### No Domain Events
+`internal/auth/service.go` depends on `user.User` (the type) and a small interface it owns itself, `UserLookup`, rather than the full `user.Repository`:
 
-There are no `UserRegistered` or `UserDeleted` events. This is intentional for the current scope — no other service needs to react to user lifecycle changes yet. Adding events when there is no subscriber would be speculative design.
+```go
+type UserLookup interface {
+    ExistsByEmail(ctx context.Context, email string) (bool, error)
+    GetByEmail(ctx context.Context, email string) (*user.User, error)
+    Create(ctx context.Context, u *user.User) (*user.User, error)
+}
 
-### No Aggregate Beyond User
+type AuthService struct {
+    repo          UserLookup
+    tokenStore    token.Store
+    tokenIssuer   token.AccessIssuer
+    accessExpiry  time.Duration
+    refreshExpiry time.Duration
+}
+```
 
-`User` is both entity and aggregate root. There are no child entities owned by `User`. This is correct for the current domain — a user does not own orders, products, or any other domain objects in this service.
+`*user.UserRepository` already implements `ExistsByEmail`, `GetByEmail`, and `Create`, so it satisfies `UserLookup` implicitly — `bootstrap` passes the same repository instance to both `user.NewUserService` and `auth.NewAuthService` with no extra adapter. This keeps `auth`'s coupling to `user` limited to exactly the three operations it needs, instead of the entire CRUD surface. It's still an in-process Go interface, not a network boundary — splitting `auth` into its own service would still mean replacing this with an HTTP/gRPC call to `user` — but the contract is already minimal, so that future change touches one interface, not every call site.
 
-### No Domain Service
+`internal/auth/token_store.go` (`RedisTokenStore`) implements `token.Store` from `pkg/token` — refresh tokens are stored in Redis as `refresh:<token> → userID`, independent of the `user` module's Postgres-backed repository.
 
-Uniqueness checking (`ExistsByEmail`) happens in the use case, not a domain service. A domain service makes sense when logic spans multiple aggregates or requires cross-cutting domain knowledge. Single-entity uniqueness checks in the use case are idiomatic in Go microservices and do not represent an architectural flaw.
+---
+
+## What Is and Isn't DDD Here
+
+| Pattern | Present? |
+|---|---|
+| Entity with identity | Yes — `User`, compared by `ID` |
+| Value Objects (`Email`, `Password`) | **No** — both are plain `string` fields |
+| Aggregate beyond the entity itself | No — `User` owns no child entities |
+| Domain events (`UserRegistered`, etc.) | No — nothing currently needs to react to user lifecycle changes |
+| Repository pattern | Yes — `user.Repository`, owned by the domain, implemented by infrastructure |
+| Domain service (logic spanning multiple aggregates) | No — single-entity checks live in the module's service |
+
+This service is intentionally **DDD-lite**: it gets the repository pattern's testability/inversion benefit without paying for value objects, aggregates, or events that have no current use case. If business rules around `User` grow (e.g. password policy, email verification workflows), reintroducing `Email`/`Password` as value objects is the natural next step — see [[internal-architecture.md]] alternative #4.
 
 ---
 
 ## Suggestions
 
-### 1. Remove `TableName()` from the Domain Entity
+### 1. Consider a `UserID` Value Type
 
-`user.go:18` has `func (User) TableName() string { return "users" }`. This is a GORM lifecycle hook leaking into the domain layer — the domain should have no knowledge of how it is stored.
+IDs are bare `int` throughout. A named type (`type ID int`) costs nothing and turns "passed a product ID where a user ID was expected" into a compile error instead of a silent bug.
 
-Move it to the persistence layer:
+### 2. Value Objects Only If Rules Grow
 
-```go
-// infrastructure/persistence/user_repository.go
-// Tell GORM the table name without touching the domain struct
-db.NamingStrategy = schema.NamingStrategy{TablePrefix: ""}
-
-// Or use a GORM tabler adapter in the repo, not the entity:
-type userRecord struct {
-    user.User
-}
-func (userRecord) TableName() string { return "users" }
-```
-
-Alternatively, since `users` is the conventional GORM plural of `User`, you can simply delete `TableName()` entirely and let GORM's default naming convention handle it.
-
-### 2. Abstract Token Signing Behind an Interface
-
-`usecase/auth.go:17` holds `privateKey *rsa.PrivateKey` directly. This means the use case is aware of RSA and the `token` package internals. Introduce a `TokenIssuer` interface:
-
-```go
-// usecase/port/auth.go (or domain/token/)
-type TokenIssuer interface {
-    Issue(userID int, expiry time.Duration) (string, error)
-}
-```
-
-The `AuthService` depends on `TokenIssuer`, and the infrastructure provides an RSA implementation. This makes `AuthService` testable with a mock issuer and decoupled from the crypto library.
-
-### 3. `UserService.Create` Creates a User With an Empty Password
-
-`usecase/user.go:45`:
-```go
-return s.repo.Create(ctx, userDomain.New(input.Name, email, ""))
-```
-
-`New()` accepts `Password` typed as a plain `string` alias, so `""` passes through as a zero-value `Password`. This creates a user who can never log in (no password set), but the domain model does not express this intent.
-
-Options in order of preference:
-
-**a)** Add a `NewUserWithoutPassword` constructor that makes the passwordless state explicit:
-```go
-func NewWithoutPassword(name string, email Email) *User {
-    return &User{Name: name, Email: email}
-}
-```
-
-**b)** Make `Password` a pointer in the `User` struct so `nil` means "no password set", distinguishing it from an empty hash.
-
-**c)** Add a domain method `(u *User) SetPassword(p Password)` used only by the admin flow.
-
-### 4. `ListSchema` Belongs in the Layer That Uses It
-
-`ListSchema` is a `query.Schema` that configures which columns can be filtered and sorted. It is only consumed by `delivery/http/handler/user.go` — it is not a domain rule. It now lives as a package-level var in the handler (`userListSchema`) and the domain has no dependency on `pkg/query`.
-
-### 5. Consider a `UserID` Value Type
-
-IDs are `int` throughout. Passing a bare `int` as a user ID can silently mix with other integer IDs (product IDs, order IDs). A named type costs nothing:
-
-```go
-// domain/user/user.go
-type ID int
-
-type User struct {
-    ID        ID
-    // ...
-}
-```
-
-This makes `repo.GetByID(ctx, productID)` a compile error rather than a silent bug.
+Don't add `Email`/`Password` value objects speculatively — the current validation (`validate:"required,email"` on DTOs, bcrypt in the service) is adequate for CRUD-level rules. Revisit if password policy or email-verification logic grows beyond what fits comfortably in `auth.Service`.
 
 ---
 
@@ -268,7 +150,8 @@ This makes `repo.GetByID(ctx, productID)` a compile error rather than a silent b
 
 | Question | Answer |
 |---|---|
-| Is this Clean Architecture? | Yes — every layer boundary is enforced by an interface |
-| Is DDD applied? | Partially — value objects and repository pattern are correct DDD; no domain events or aggregate hierarchies |
-| Is it appropriate for the service's complexity? | Yes — the current domain is CRUD-heavy; full tactical DDD would add indirection without payoff |
-| What should change? | Remove `TableName()` from domain; fix passwordless user construction; move `ListSchema` out of domain |
+| What architecture is this? | Modular Monolith — package-by-feature, one binary, modules wired by `bootstrap` |
+| Is it Clean Architecture? | No — handlers call concrete `*Service` structs, no Use Case interfaces |
+| Is DDD applied? | Partially — repository pattern only; no value objects, aggregates, or events |
+| Is it appropriate for the service's complexity? | Yes — CRUD + auth, no workflows or invariants complex enough to need more |
+| What should change next? | Optional: a `UserID` value type; value objects only if password/email rules grow |

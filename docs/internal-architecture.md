@@ -2,34 +2,32 @@
 
 ## What We Use
 
-This codebase uses **Layered Architecture with Dependency Inversion at the repository boundary** — a pragmatic middle ground between plain layers and full Clean Architecture.
+This codebase uses a **Modular Monolith (package-by-feature)** layout inside every service.
 
-### The Four Layers
+Each service is a single deployable binary, but internally it is split into self-contained feature modules — `user`, `auth`, `health`, etc. Each module owns its own model, repository, service, handler, and DTOs. There is no cross-cutting `model/`, `repository/`, `service/`, `handler/` split — those concerns live *inside* the feature package, not as separate top-level layers.
 
 ```
-┌──────────────────────────────────────────────────────┐
-│  Delivery Layer                                      │
-│  handler/ · router/ · middleware/                    │
-│  Decodes HTTP input, calls service, writes response  │
-└───────────────────┬──────────────────────────────────┘
-                    │ calls concrete struct
-┌───────────────────▼──────────────────────────────────┐
-│  Business Logic Layer                                │
-│  service/                                            │
-│  Orchestrates domain rules, transactions, bcrypt     │
-└───────────────────┬──────────────────────────────────┘
-                    │ calls interface defined in model/
-┌───────────────────▼──────────────────────────────────┐
-│  Domain Layer                                        │
-│  model/                                              │
-│  Structs + repository interfaces + query schemas     │
-└───────────────────┬──────────────────────────────────┘
-                    │ implemented by
-┌───────────────────▼──────────────────────────────────┐
-│  Infrastructure Layer                                │
-│  repository/ · config/                               │
-│  GORM, Redis, Postgres, env-var loading              │
-└──────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                      services/user                       │
+│                  (one deployable binary)                 │
+│                                                            │
+│  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐    │
+│  │   user/      │  │   auth/      │  │   health/   │    │
+│  │              │  │              │  │             │    │
+│  │ model.go     │  │ dto.go       │  │ handler.go  │    │
+│  │ repository.go│  │ handler.go   │  │             │    │
+│  │ service.go   │  │ service.go   │  │             │    │
+│  │ handler.go   │  │ token_store. │  │             │    │
+│  │ dto.go       │  │ go           │  │             │    │
+│  └──────────────┘  └──────────────┘  └─────────────┘    │
+│         ▲                  │                              │
+│         └──────────────────┘                              │
+│         auth imports user.Repository directly              │
+│                                                            │
+│  bootstrap/  — composition root, wires modules together   │
+│  router/     — maps HTTP paths to each module's handler   │
+│  config/     — env loading, DB/Redis setup                │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ### Folder Structure
@@ -39,109 +37,76 @@ services/user/
 ├── cmd/api/main.go             # entry point — boot only, no logic
 └── internal/
     ├── bootstrap/
-    │   └── app.go              # manual DI: wire repo → service → handler
+    │   └── app.go              # composition root: wires repo → service → handler per module
     ├── config/
     │   ├── config.go           # Config struct + env loading
     │   ├── database.go         # GORM setup + connection pool
     │   └── redis.go            # Redis client setup
-    ├── dto/
-    │   └── user.go             # CreateUserRequest, RegisterDTO, LoginDTO …
-    ├── handler/
-    │   ├── auth.go             # Register, Login, Refresh, Logout
-    │   ├── user.go             # GetAll, GetByID, Create, Update, Delete
-    │   └── health.go           # /healthz, /readyz
-    ├── middleware/
-    │   └── auth.go             # reads X-User-ID injected by Kong → ctx
-    ├── model/
-    │   └── user.go             # User struct + UserRepository interface
-    ├── repository/
-    │   ├── user.go             # GORM impl of model.UserRepository
-    │   └── token.go            # Redis impl of token.Store
-    ├── router/
-    │   ├── router.go           # root mux + middleware chain
-    │   ├── auth.go             # /auth/* routes
-    │   └── user.go             # /users/* routes + auth middleware
-    └── service/
-        ├── auth.go             # Register (bcrypt hash), Login (bcrypt compare)
-        └── user.go             # CRUD + UpdateUser transaction
+    ├── user/                   # feature module: user CRUD
+    │   ├── model.go            # User struct + Repository interface + ListSchema
+    │   ├── repository.go       # GORM impl of Repository
+    │   ├── service.go          # CRUD orchestration, transactional update
+    │   ├── handler.go          # GetAll, GetByID, Create, Update, Delete
+    │   └── dto.go               # CreateUserRequest, UpdateUserRequest
+    ├── auth/                   # feature module: authentication
+    │   ├── dto.go               # RegisterDTO, LoginDTO
+    │   ├── handler.go           # Register, Login, Refresh, Logout
+    │   ├── service.go           # bcrypt hashing, token issuance/rotation
+    │   └── token_store.go       # Redis impl of token.Store
+    ├── health/                 # feature module: liveness/readiness
+    │   └── handler.go
+    └── router/
+        ├── router.go           # root mux + middleware chain
+        ├── auth.go              # /auth/* routes
+        └── user.go              # /users/* routes + auth middleware
 ```
 
-### Why "Layered with DI" and not plain Layered?
+### Why Package-by-Feature and Not Package-by-Layer?
 
-In classic Layered Architecture the repository interface belongs to the data-access layer — handlers and services import downward into the database layer.
+In the layer-based split this codebase used previously (`internal/model/`, `internal/repository/`, `internal/service/`, `internal/handler/`, `internal/dto/`), every change to one resource touched five different top-level packages, and the layer boundary was the only organizing principle — feature boundaries weren't visible in the folder tree at all.
 
-Here the `model/` package defines `UserRepository`. The `repository/` package imports `model/` and implements it. The domain owns the contract; infrastructure conforms to it. Services never import GORM or Redis directly.
+With package-by-feature, everything about a feature is colocated. Adding or removing the `health` module never touches `user/` or `auth/`. The repository interface still lives in the package that owns the data (`user.Repository` in `user/model.go`), so the dependency-inversion benefit at the persistence boundary is preserved — it's just scoped per-module instead of globally.
 
 ```
-model.UserRepository  ← interface (domain owns it)
+user.Repository       ← interface (the user module owns it)
        ↑
-repository.UserRepository  ← GORM implementation (infrastructure conforms)
+user.UserRepository   ← GORM implementation (same package, conforms to the interface)
 ```
 
-### What it is not
+### What This Module Boundary Is — and Isn't
 
-- Not full **Clean Architecture** — handlers call `*service.UserService` concretely, not through an interface. There is no Use Cases / Interactors boundary layer.
-- Not **Hexagonal** — there are no named input/output ports; the boundary exists only at the repository layer.
-- Not **Vertical Slice** — code is organized by layer, not by feature.
+- **Modules share one process and one deploy.** This is what makes it a *monolith*, not a set of microservices, even though `auth` and `user` are conceptually separate domains.
+- **Module boundaries are deliberately narrow at the one cross-module dependency.** `auth.Service` depends on `auth.UserLookup` (`internal/auth/service.go`) — a 3-method interface owned by `auth` itself — rather than the full `user.Repository`. `*user.UserRepository` satisfies it implicitly, so `bootstrap` wires them together with no extra glue. This is the seam that would need to move to a real network call before `auth` could be extracted into its own service, but the contract `auth` depends on is already minimal.
+- **Not Clean Architecture** — there's no Use Cases/Interactors layer, and handlers call concrete `*Service` structs, not interfaces.
+- **Not Hexagonal** — no named inbound/outbound ports; the only inverted boundary is the repository.
+- **Not DDD** — `User` is an anemic struct (no behavior, no value objects); business rules live in the service, not the model.
 
 ---
 
 ## Alternatives
 
-### 1. Plain Layered Architecture
+### 1. Layered Architecture (Handler → Service → Repository)
 
 ```
 handler/ → service/ → repository/ → DB
 ```
 
-Repository interfaces live in `repository/`, not in `model/`. Services import the data layer directly.
+One top-level package per layer, shared across all features in the service. This is what this codebase used before adopting the modular monolith.
 
-### Folder Structure
+**Adds:** Nothing over what we have now.
 
-```
-services/user/
-├── cmd/api/main.go
-└── internal/
-    ├── config/
-    │   ├── config.go
-    │   ├── database.go
-    │   └── redis.go
-    ├── handler/
-    │   ├── auth.go
-    │   ├── user.go
-    │   └── health.go
-    ├── middleware/
-    │   └── auth.go
-    ├── model/
-    │   └── user.go             # plain struct only — no interface here
-    ├── repository/
-    │   ├── user.go             # interface + GORM impl in the same package
-    │   └── token.go
-    ├── router/
-    │   ├── router.go
-    │   ├── auth.go
-    │   └── user.go
-    └── service/
-        ├── auth.go             # imports repository.UserRepository directly
-        └── user.go
-```
+**Loses:** Feature boundaries aren't visible in the folder tree. Every new resource (e.g. adding a `product` feature to a service) adds a file to four or five existing packages instead of creating one new package. Harder to later extract a feature into its own microservice, since its code is scattered across layers instead of colocated.
 
-The key difference from the current approach: `model/user.go` is just a struct file. The `UserRepository` interface moves into `repository/user.go` next to its implementation. Services import `repository` instead of `model` for the interface.
-
-**Adds:** Nothing over what we have. Slightly simpler — one fewer package to navigate.
-
-**Loses:** The data layer can now leak ORM types upward. Harder to test services without real GORM structs.
-
-**Choose when:** The service is very small (< 5 endpoints), has no complex business rules, and you want the absolute minimum structure.
+**Choose when:** The service will only ever have one or two resources and isn't expected to grow more feature modules.
 
 ---
 
 ### 2. Clean Architecture (Uncle Bob)
 
-Adds two things we currently skip:
+Adds two things package-by-feature currently skips:
 
-1. **Interfaces at every layer boundary** — handlers call a `UserServicePort` interface, not `*service.UserService`. Every boundary is invertible.
-2. **Use Cases / Interactors** — a dedicated layer between handlers and domain that contains one struct per business operation (`RegisterUseCase`, `LoginUseCase`, etc.).
+1. **Interfaces at every layer boundary** — handlers call a `UserServicePort` interface, not `*user.Service`.
+2. **Use Cases / Interactors** — a dedicated layer between handlers and domain with one struct per business operation.
 
 ```
 ┌────────────────────────────────────┐
@@ -161,62 +126,9 @@ Adds two things we currently skip:
 └────────────────────────────────────┘
 ```
 
-### Folder Structure
-
-```
-services/user/
-├── cmd/api/main.go
-└── internal/
-    ├── domain/
-    │   ├── entity/
-    │   │   └── user.go             # User struct, pure — no framework imports
-    │   └── port/
-    │       ├── user_repository.go  # UserRepository interface
-    │       └── token_store.go      # TokenStore interface
-    │
-    ├── usecase/
-    │   ├── port/
-    │   │   ├── auth_usecase.go     # AuthUseCase interface (handlers depend on this)
-    │   │   └── user_usecase.go     # UserUseCase interface
-    │   ├── auth/
-    │   │   ├── register.go         # RegisterUseCase struct + Execute()
-    │   │   ├── login.go            # LoginUseCase struct + Execute()
-    │   │   ├── refresh.go
-    │   │   └── logout.go
-    │   └── user/
-    │       ├── get_all.go
-    │       ├── get_by_id.go
-    │       ├── create.go
-    │       ├── update.go
-    │       └── delete.go
-    │
-    ├── delivery/
-    │   └── http/
-    │       ├── handler/
-    │       │   ├── auth.go         # calls usecase.AuthUseCase interface
-    │       │   ├── user.go         # calls usecase.UserUseCase interface
-    │       │   └── health.go
-    │       ├── middleware/
-    │       │   └── auth.go
-    │       └── router/
-    │           ├── router.go
-    │           ├── auth.go
-    │           └── user.go
-    │
-    └── infrastructure/
-        ├── persistence/
-        │   └── user_repository.go  # GORM impl of domain/port.UserRepository
-        ├── cache/
-        │   └── token_store.go      # Redis impl of domain/port.TokenStore
-        └── config/
-            ├── config.go
-            ├── database.go
-            └── redis.go
-```
-
 **Adds:** Every layer is mockable without a framework. New delivery mechanisms (gRPC, CLI, queue consumer) plug in without touching business logic. Compiler enforces every architectural boundary.
 
-**Loses:** Significantly more files and interfaces. A `CreateProduct` operation that today spans ~40 lines of handler + service code becomes a handler, a use case interface, a use case struct, a request/response object, and a presenter. Refactoring across boundaries is slower.
+**Loses:** Significantly more files and interfaces per feature. Refactoring across boundaries is slower.
 
 **Choose when:** The service has complex, branching business rules. Multiple delivery mechanisms exist (HTTP + gRPC + CLI). You have a team of 4+ developers who need the compiler to enforce boundaries, not code review.
 
@@ -224,339 +136,67 @@ services/user/
 
 ### 3. Hexagonal Architecture (Ports and Adapters)
 
-The framing differs from Clean Architecture even though the structure is similar. The domain is at the center. Everything outside is an adapter connecting through named ports (interfaces). The key terminology: adapters that drive the application are **inbound** (e.g., HTTP handler); adapters the application drives are **outbound** (e.g., Postgres, Redis).
+Same structural shape as Clean Architecture, different vocabulary: the domain sits at the center with named **inbound** (driving) and **outbound** (driven) ports; everything else is an adapter.
 
-```
-         ┌─────────────────────────────────────┐
-         │              Domain                  │
-         │  (pure Go, zero imports, no HTTP)    │
-         │                                      │
-         │  ┌──────────┐    ┌──────────────┐   │
-         │  │ inbound  │    │  outbound    │   │
-         │  │ ports    │    │  ports       │   │
-         │  │(driving) │    │ (driven)     │   │
-         │  └────┬─────┘    └──────┬───────┘   │
-         └───────┼─────────────────┼───────────┘
-                 │                 │
-        ┌────────▼──────┐ ┌────────▼──────┐
-        │ HTTP Adapter  │ │  DB Adapter   │
-        │  (inbound)    │ │  (outbound)   │
-        └───────────────┘ └───────────────┘
-```
+**Adds:** Domain code has zero framework imports. You can test the entire domain in-memory with no database at all.
 
-### Folder Structure
+**Loses:** Strict port/adapter naming discipline requires consistent team buy-in; in Go the file structure ends up very similar to Clean Architecture.
 
-```
-services/user/
-├── cmd/api/main.go
-└── internal/
-    ├── domain/
-    │   ├── user.go                 # User entity — pure Go, no imports
-    │   ├── email.go                # Email value object with validation method
-    │   ├── password.go             # Password value object with bcrypt methods
-    │   └── port/
-    │       ├── inbound/
-    │       │   ├── auth_service.go # interface: Register, Login, Refresh, Logout
-    │       │   └── user_service.go # interface: GetAll, GetByID, Create, Update, Delete
-    │       └── outbound/
-    │           ├── user_repo.go    # interface: persistence operations
-    │           └── token_store.go  # interface: token save/lookup/delete
-    │
-    ├── adapter/
-    │   ├── inbound/
-    │   │   └── http/
-    │   │       ├── handler/
-    │   │       │   ├── auth.go     # implements nothing; calls inbound port
-    │   │       │   ├── user.go
-    │   │       │   └── health.go
-    │   │       ├── middleware/
-    │   │       │   └── auth.go
-    │   │       └── router/
-    │   │           └── router.go
-    │   └── outbound/
-    │       ├── postgres/
-    │       │   └── user_repo.go    # implements outbound/user_repo.go port
-    │       └── redis/
-    │           └── token_store.go  # implements outbound/token_store.go port
-    │
-    ├── app/
-    │   ├── auth_service.go         # implements inbound/auth_service.go port
-    │   └── user_service.go         # implements inbound/user_service.go port
-    │
-    └── config/
-        ├── config.go
-        ├── database.go
-        └── redis.go
-```
-
-**Adds:** Domain code has zero framework imports. You can test the entire domain in-memory with no database at all. Swap Postgres for SQLite for tests; swap HTTP for gRPC without touching the domain.
-
-**Loses:** Explicit port/adapter naming discipline requires consistent team buy-in. In Go the file structure is very similar to Clean Architecture — the main difference is the vocabulary (ports/adapters vs use-cases/entities) and the stricter zero-import rule on the domain.
-
-**Choose when:** You want the strictest possible isolation of business rules from all frameworks. Good when the domain logic is the most valuable and long-lived part of the system, and infrastructure is expected to change (e.g., migrating DB engines, adding new transport protocols).
+**Choose when:** You want the strictest possible isolation of business rules from frameworks, and infrastructure (DB engine, transport) is expected to change.
 
 ---
 
-### 4. Vertical Slice Architecture
+### 4. Domain-Driven Design (DDD — Tactical Patterns)
 
-Abandon layer-based folders entirely. Organize by **feature** instead. Each slice is a self-contained mini-stack from HTTP handler to DB query.
-
-### Folder Structure
-
-```
-services/user/
-├── cmd/api/main.go
-└── internal/
-    ├── register/
-    │   ├── handler.go          # HTTP handler for POST /auth/register
-    │   ├── service.go          # bcrypt hash + create user
-    │   ├── repository.go       # ExistsByEmail + CreateUser queries
-    │   └── dto.go              # RegisterRequest, RegisterResponse
-    │
-    ├── login/
-    │   ├── handler.go          # HTTP handler for POST /auth/login
-    │   ├── service.go          # bcrypt compare + issue token pair
-    │   └── dto.go              # LoginRequest, LoginResponse
-    │
-    ├── refresh/
-    │   ├── handler.go          # POST /auth/refresh
-    │   └── service.go          # Redis lookup + token rotation
-    │
-    ├── logout/
-    │   ├── handler.go          # POST /auth/logout
-    │   └── service.go          # Redis delete + clear cookie
-    │
-    ├── getuser/
-    │   ├── handler.go          # GET /users/{id}
-    │   ├── repository.go       # SELECT by id
-    │   └── dto.go
-    │
-    ├── listusers/
-    │   ├── handler.go          # GET /users
-    │   ├── repository.go       # SELECT with filter/sort/page
-    │   └── dto.go
-    │
-    ├── createuser/
-    │   ├── handler.go          # POST /users
-    │   ├── service.go          # duplicate email check + insert
-    │   ├── repository.go
-    │   └── dto.go
-    │
-    ├── updateuser/
-    │   ├── handler.go          # PUT /users/{id}
-    │   ├── service.go          # tx: fetch → check email → update
-    │   ├── repository.go
-    │   └── dto.go
-    │
-    ├── deleteuser/
-    │   ├── handler.go          # DELETE /users/{id}
-    │   └── repository.go
-    │
-    └── shared/                 # only extract here when 3+ slices need it
-        ├── model/
-        │   └── user.go         # shared User struct
-        ├── middleware/
-        │   └── auth.go         # X-User-ID → ctx
-        └── router/
-            └── router.go       # registers all slice handlers
-```
-
-Each slice owns its handler, business logic, and DB query. Slices import from `pkg/` for cross-cutting concerns (pagination, response, apperror) but not from each other.
-
-**Adds:** Adding or deleting a feature is self-contained — one folder, no ripple across layers. Cognitive load per change is low. Avoids the "which layer does this belong to?" question. Scales well when features are numerous and largely independent.
-
-**Loses:** Shared logic (e.g., `GetUserByID` used by both `updateuser` and `getuser`) must either be duplicated or extracted into `shared/`, which recreates a partial layer anyway. Harder to enforce consistent patterns across slices. Go's package-per-directory model means each slice becomes a separate package, which is verbose.
-
-**Choose when:** The service has many loosely-related features (e.g., a BFF or admin dashboard). Features are added and removed frequently. You find yourself saying "I just need to change this one thing" but layers force you to touch five files.
-
----
-
-### 5. Domain-Driven Design (DDD — Tactical Patterns)
-
-Enriches the domain layer with DDD building blocks layered on top of any structural style. Applied on top of Layered or Clean Architecture — it is not a structural pattern on its own, it is a domain-modelling discipline.
+Enriches the domain layer with DDD building blocks (entities, value objects, aggregates, domain events). DDD is a modelling discipline, not a structural pattern — it can be layered on top of package-by-feature, Clean Architecture, or plain Layered.
 
 | Building Block | What it is | Example here |
 |---|---|---|
-| **Entity** | Object with identity | `User`, `Product` |
-| **Value Object** | Immutable, identity-free | `Email`, `Price`, `Money` |
-| **Aggregate** | Cluster with one root | `Order` owns `OrderLine[]` |
-| **Domain Service** | Logic that doesn't fit one entity | `PricingService` |
-| **Repository** | Collection abstraction | Already present |
-| **Domain Event** | Something that happened | `UserRegistered`, `OrderPlaced` |
+| **Entity** | Object with identity | `user.User` |
+| **Value Object** | Immutable, identity-free | `Email`, `Password` (not currently present) |
+| **Aggregate** | Cluster with one root | n/a — `User` has no owned children |
+| **Domain Service** | Logic that doesn't fit one entity | n/a |
+| **Repository** | Collection abstraction | Already present (`user.Repository`) |
+| **Domain Event** | Something that happened | n/a — no event publishing |
 
-In the current codebase `User` and `Product` are anemic — plain structs with no methods that enforce invariants. Business rules (e.g., "email must be unique") live in `service/`, not on the model itself.
+`user.User` today is anemic — a plain struct with no methods that enforce invariants. Business rules (uniqueness checks, password hashing) live in `user.Service` / `auth.Service`, not on the model itself.
 
-### Folder Structure
-
-```
-services/user/
-├── cmd/api/main.go
-└── internal/
-    ├── domain/
-    │   ├── user/
-    │   │   ├── user.go             # User aggregate root with behaviour methods
-    │   │   ├── email.go            # Email value object — NewEmail() validates format
-    │   │   ├── password.go         # Password value object — Hash(), Matches()
-    │   │   ├── event.go            # UserRegistered, UserDeleted domain events
-    │   │   └── repository.go       # UserRepository interface
-    │   └── token/
-    │       ├── token.go            # RefreshToken value object
-    │       └── store.go            # TokenStore interface
-    │
-    ├── application/                # thin orchestration — no business rules here
-    │   ├── auth_service.go         # Register(), Login(), Refresh(), Logout()
-    │   └── user_service.go         # GetAll(), GetByID(), Create(), Update(), Delete()
-    │
-    ├── infrastructure/
-    │   ├── persistence/
-    │   │   └── user_repository.go  # GORM impl of domain/user.UserRepository
-    │   └── cache/
-    │       └── token_store.go      # Redis impl of domain/token.TokenStore
-    │
-    ├── delivery/
-    │   └── http/
-    │       ├── handler/
-    │       │   ├── auth.go
-    │       │   ├── user.go
-    │       │   └── health.go
-    │       ├── middleware/
-    │       │   └── auth.go
-    │       └── router/
-    │           └── router.go
-    │
-    └── config/
-        ├── config.go
-        ├── database.go
-        └── redis.go
-```
-
-What changes in `domain/user/user.go` vs the current `model/user.go`:
-
-```go
-// Current (anemic): plain struct, rules live in service/
-type User struct {
-    ID    int
-    Email string
-}
-
-// DDD: aggregate enforces its own rules
-type User struct {
-    id       int
-    email    Email     // value object — already validated
-    password Password  // value object — hashed
-}
-
-func NewUser(name string, email Email, password Password) (*User, error) {
-    // invariants enforced here, not in service/
-}
-
-func (u *User) ChangeEmail(email Email) error { ... }
-```
-
-**Adds:** Models enforce their own invariants. Rich value types (`Email`, `Password`) make invalid state unrepresentable at compile time. Domain events enable loose coupling between aggregates without direct imports.
+**Adds:** Models enforce their own invariants; rich value types (`Email`, `Password`) make invalid state unrepresentable. Domain events enable loose coupling between modules without direct imports — this is also the natural fix for the `auth → user.Repository` coupling noted above.
 
 **Loses:** More types, more indirection. Most useful when the domain is genuinely complex with many invariants. Overkill for simple CRUD.
 
-**Choose when:** The service has a rich, rules-heavy domain — not just CRUD but workflows, state machines, or multi-step business processes (e.g., an orders or billing service).
+**Choose when:** A module's business rules grow rules-heavy — workflows, state machines, or multi-step processes — not just CRUD.
 
 ---
 
-### 6. CQRS (Command Query Responsibility Segregation)
+### 5. CQRS (Command Query Responsibility Segregation)
 
-Split the request path into two: **Commands** (writes, go through domain model + business rules) and **Queries** (reads, bypass the domain model and query the DB directly for a DTO projection).
+Split the request path into **Commands** (writes, go through the domain model + business rules) and **Queries** (reads, bypass the domain model and query the DB directly for a DTO projection). Applies within a feature module (e.g. `user/command/`, `user/query/`) rather than across the whole service.
 
-```
-┌──────────────────────┐          ┌───────────────────────┐
-│    Command Side       │          │     Query Side         │
-│                       │          │                        │
-│  RegisterUser         │  write   │  GetAllUsers           │
-│  UpdateUser    ───────┼─────────▶│  GetUserByID           │
-│  DeleteUser           │  sync /  │                        │
-│                       │  event   │  Direct SQL → DTO      │
-│  domain model used    │          │  no domain model       │
-│  full business rules  │          │  no ORM overhead       │
-└──────────────────────┘          └───────────────────────┘
-```
+**Adds:** Read paths become simple, fast SQL projections with no business logic overhead. Each side can be optimized independently.
 
-In its simplest form (single DB, no event bus): commands go through `service/ → repository/`, queries go through a dedicated read repository that returns DTOs directly from SQL — no `User` struct instantiated, no GORM model scanning.
+**Loses:** Two parallel paths to maintain per module.
 
-### Folder Structure
-
-```
-services/user/
-├── cmd/api/main.go
-└── internal/
-    ├── command/                    # write side — full domain model + rules
-    │   ├── handler/
-    │   │   └── auth.go             # POST /auth/register, /login, /refresh, /logout
-    │   ├── service/
-    │   │   ├── auth.go             # Register (bcrypt), Login (bcrypt compare)
-    │   │   └── user.go             # Create, Update (tx), Delete
-    │   └── repository/
-    │       ├── user.go             # write operations: Insert, Update, Delete
-    │       └── token.go            # Redis token store
-    │
-    ├── query/                      # read side — direct SQL, returns DTOs
-    │   ├── handler/
-    │   │   └── user.go             # GET /users, GET /users/{id}
-    │   ├── dto/
-    │   │   └── user.go             # UserView, UserListItem — read-optimised shapes
-    │   └── repository/
-    │       └── user.go             # GetByID, GetAll — raw SQL or GORM scan into DTOs
-    │
-    ├── domain/
-    │   └── user.go                 # User struct + UserRepository interface (write side)
-    │
-    ├── delivery/
-    │   └── http/
-    │       ├── middleware/
-    │       │   └── auth.go
-    │       └── router/
-    │           └── router.go       # wires both command and query handlers
-    │
-    └── config/
-        ├── config.go
-        ├── database.go
-        └── redis.go
-```
-
-The query repository returns a flat DTO directly — no domain model is loaded:
-
-```go
-// query/repository/user.go
-func (r *UserReadRepo) GetAll(ctx context.Context, p pagination.Params) ([]dto.UserView, int64, error) {
-    // Raw scan into DTO — no model.User instantiated, no business logic
-    var views []dto.UserView
-    r.db.Raw("SELECT id, name, email, created_at FROM users LIMIT ? OFFSET ?",
-        p.Limit, p.Offset()).Scan(&views)
-    ...
-}
-```
-
-**Adds:** Read paths become simple, fast SQL projections with no business logic overhead. Write paths stay protected by business rules. Each side can be optimised (and eventually scaled) independently. Natural stepping stone toward Event Sourcing.
-
-**Loses:** Two parallel paths to maintain. More indirection for what are simple lookups. Full CQRS with separate read/write databases adds eventual consistency complexity.
-
-**Choose when:** Read traffic vastly outweighs writes, and reads need different projections than the write model (dashboard aggregates, search results). Or when you want to add Event Sourcing later and need the write model fully separated.
+**Choose when:** Read traffic vastly outweighs writes and reads need different projections than the write model.
 
 ---
 
 ## Concept Categories
 
-| Concept        | Category                         |
-| -------------- | -------------------------------- |
-| Layered        | Structural Architecture          |
-| Clean          | Structural Architecture          |
-| Hexagonal      | Structural Architecture          |
-| Onion          | Structural Architecture          |
-| Vertical Slice | Structural Architecture          |
-| DDD            | Domain Modeling Discipline       |
-| CQRS           | Architectural Pattern            |
-| Event Sourcing | Persistence Pattern              |
-| Event-Driven   | Architectural Style              |
-| Saga           | Distributed Transaction Pattern  |
-| Microservices  | System Architecture              |
-| Monolith       | System Architecture              |
+| Concept            | Category                         |
+| ------------------ | --------------------------------- |
+| Layered            | Structural Architecture          |
+| Clean               | Structural Architecture          |
+| Hexagonal           | Structural Architecture          |
+| Vertical Slice / Package-by-Feature | Structural Architecture |
+| DDD                  | Domain Modeling Discipline       |
+| CQRS                 | Architectural Pattern            |
+| Event Sourcing       | Persistence Pattern              |
+| Event-Driven         | Architectural Style              |
+| Saga                 | Distributed Transaction Pattern  |
+| Microservices        | System Architecture              |
+| Modular Monolith     | System Architecture (chosen, per-service) |
+| Monolith             | System Architecture              |
 
 ---
 
@@ -564,43 +204,25 @@ func (r *UserReadRepo) GetAll(ctx context.Context, p pagination.Params) ([]dto.U
 
 | Situation | Recommended |
 |---|---|
-| Simple CRUD, small team, fast iteration | **Plain Layered** |
-| CRUD with moderate rules, single transport | **Layered + DI at repo** ← current |
+| One service, few resources, never expected to grow modules | **Plain Layered** |
+| Multiple feature modules per service (current state) | **Modular Monolith / package-by-feature** ← current |
 | Multiple delivery transports (HTTP + gRPC + CLI) | **Clean Architecture** |
 | Strictest domain isolation, infrastructure expected to change | **Hexagonal** |
-| Many loosely-related features, frequent add/remove | **Vertical Slice** |
-| Complex business rules, invariants, workflows | **Layered + DDD tactical patterns** |
-| Read-heavy, complex projections, or pre-Event Sourcing | **CQRS** |
+| Complex business rules, invariants, workflows in a module | **Package-by-feature + DDD tactical patterns** |
+| Read-heavy, complex projections, or pre-Event Sourcing | **CQRS** (within a module) |
 
-These are not mutually exclusive. The most common evolution path for a growing microservice:
+These are not mutually exclusive. The most likely evolution path for a growing module within a service:
 
 ```
-Layered + DI  →  add DDD tactical patterns  →  add CQRS for read paths
+Package-by-feature  →  add DDD tactical patterns to the module  →  add CQRS for its read paths
 ```
 
-Clean Architecture and Hexagonal Architecture are structural overlays — they can sit on top of any of the above.
+If a module eventually needs to scale or deploy independently of the rest of the service, the module boundary already drawn here (`internal/auth/`, `internal/user/`) is what gets lifted out into its own microservice — that's the whole point of choosing this layout per [[Monorepo Plan]].
 
 ---
 
-| Concept        | Category                         |
-| -------------- | -------------------------------- |
-| Layered        | Structural Architecture          |
-| Clean          | Structural Architecture          |
-| Hexagonal      | Structural Architecture          |
-| Vertical Slice | Structural Architecture          |
-| DDD            | Domain Modeling Discipline       |
-| CQRS           | Architectural/Data Pattern       |
-| Event Sourcing | Persistence Pattern              |
-| Event-Driven   | Communication Pattern            |
-| Saga           | Distributed Coordination Pattern |
-| Microservices  | System Architecture              |
-| Monolith       | System Architecture              |
-
-
 ## Where This Service Could Go Next
 
-The current catalog and user services are CRUD-heavy with thin business logic. The most useful next steps if complexity grows:
-
-- **Add value objects** (`Email`, `Price`) to the model layer — small DDD addition, high payoff for data integrity, no structural change required.
-- **Separate read queries from write operations** in the repository — a minimal CQRS split with no structural change; just add a `GetAllView()` method that scans into a DTO instead of a model struct.
-- **Add service interfaces** in `model/` alongside the repository interfaces — brings the handler→service boundary to the same level as the service→repository boundary, completing the Clean Architecture dependency rule.
+- **Add value objects** (`Email`, `Password`) to the `user` module — small DDD addition, high payoff for data integrity, no structural change required.
+- **Separate read queries from write operations** in `user/repository.go` — a minimal CQRS split with no structural change; add a `GetAllView()` method that scans into a DTO instead of a model struct.
+- **Add service interfaces** in each module alongside the repository interfaces — brings the handler→service boundary to the same level as the service→repository boundary.

@@ -2,12 +2,12 @@
 
 ## What DTOs Are
 
-DTOs are structs that represent the **shape of HTTP request bodies**. They live in `internal/dto/` and are separate from domain models.
+DTOs are structs that represent the **shape of HTTP request bodies**. They live alongside the rest of their feature module (`internal/user/dto.go`, `internal/auth/dto.go`), not in a service-wide `dto/` package — and are kept separate from the module's domain model.
 
 ```go
-// internal/dto/user.go
+// internal/user/dto.go
 type CreateUserRequest struct {
-    Name  string `json:"name"  validate:"required"`
+    Name  string `json:"name" validate:"required"`
     Email string `json:"email" validate:"required,email"`
 }
 
@@ -19,7 +19,7 @@ type UpdateUserRequest struct {
 
 ## Why DTOs Are Separate from Domain Models
 
-The domain model (`internal/model/User`) is what the service and repository work with. The DTO is what the client sends over the wire.
+The domain model (`internal/user/model.go`'s `User`) is what the service and repository work with. The DTO is what the client sends over the wire.
 
 Keeping them separate means:
 - **Validation tags belong on DTOs, not models.** The model is an internal concern; it shouldn't carry HTTP-layer annotations.
