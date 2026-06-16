@@ -1,19 +1,20 @@
-package config
+package redis
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/config"
 )
 
-func SetupRedis(cfg *RedisConfig) (*redis.Client, error) {
+func Open(cfg *config.RedisConfig) (*goredis.Client, error) {
 	if cfg == nil {
 		return nil, nil
 	}
 
-	rdb := redis.NewClient(&redis.Options{
+	rdb := goredis.NewClient(&goredis.Options{
 		Addr:     cfg.Addr,
 		Password: cfg.Password,
 		DB:       cfg.DB,

@@ -13,19 +13,22 @@ import (
 
 const refreshKeyPrefix = "refresh:"
 
-type RedisTokenStore struct {
+// RedisTokenRepository implements token.Store on top of an already-open
+// *redis.Client — it never opens a connection itself, that's
+// internal/platform/redis's job, invoked once from internal/app.
+type RedisTokenRepository struct {
 	rdb *redis.Client
 }
 
-func NewRedisTokenStore(rdb *redis.Client) token.Store {
-	return &RedisTokenStore{rdb: rdb}
+func NewRepository(rdb *redis.Client) token.Store {
+	return &RedisTokenRepository{rdb: rdb}
 }
 
-func (s *RedisTokenStore) Save(ctx context.Context, tok string, userID int, expiry time.Duration) error {
+func (s *RedisTokenRepository) Save(ctx context.Context, tok string, userID int, expiry time.Duration) error {
 	return s.rdb.Set(ctx, refreshKeyPrefix+tok, userID, expiry).Err()
 }
 
-func (s *RedisTokenStore) UserID(ctx context.Context, tok string) (int, error) {
+func (s *RedisTokenRepository) UserID(ctx context.Context, tok string) (int, error) {
 	val, err := s.rdb.Get(ctx, refreshKeyPrefix+tok).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -40,6 +43,6 @@ func (s *RedisTokenStore) UserID(ctx context.Context, tok string) (int, error) {
 	return id, nil
 }
 
-func (s *RedisTokenStore) Delete(ctx context.Context, tok string) error {
+func (s *RedisTokenRepository) Delete(ctx context.Context, tok string) error {
 	return s.rdb.Del(ctx, refreshKeyPrefix+tok).Err()
 }

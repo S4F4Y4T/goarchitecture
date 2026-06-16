@@ -12,8 +12,10 @@ import (
 
 	"github.com/s4f4y4t/go-microservice/pkg/logger"
 	"github.com/s4f4y4t/go-microservice/pkg/token"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/bootstrap"
+	"github.com/s4f4y4t/go-microservice/services/user/internal/app"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/config"
+	platformdatabase "github.com/s4f4y4t/go-microservice/services/user/internal/platform/database"
+	platformredis "github.com/s4f4y4t/go-microservice/services/user/internal/platform/redis"
 	userrouter "github.com/s4f4y4t/go-microservice/services/user/internal/router"
 )
 
@@ -26,13 +28,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := config.SetupDatabase(cfg.DB)
+	db, err := platformdatabase.Open(cfg.DB)
 	if err != nil {
 		slog.Error("setting up database", "error", err)
 		os.Exit(1)
 	}
 
-	rdb, err := config.SetupRedis(cfg.Redis)
+	rdb, err := platformredis.Open(cfg.Redis)
 	if err != nil {
 		slog.Error("setting up redis", "error", err)
 		os.Exit(1)
@@ -41,9 +43,9 @@ func main() {
 		defer rdb.Close()
 	}
 
-	app := bootstrap.Register(db, rdb, token.NewRSAIssuer(cfg.JWT.PrivateKey), cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, cfg.JWT.CookieSecure)
+	a := app.Build(db, rdb, token.NewRSAIssuer(cfg.JWT.PrivateKey), cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, cfg.JWT.CookieSecure)
 
-	mux := userrouter.Register(app.UserHandler, app.AuthHandler, app.HealthHandler, cfg, rdb)
+	mux := userrouter.Register(a.UserHTTPHandler, a.AuthHTTPHandler, a.HealthHandler, cfg, rdb)
 
 	srv := &http.Server{
 		Addr:           ":" + strconv.Itoa(cfg.Port),

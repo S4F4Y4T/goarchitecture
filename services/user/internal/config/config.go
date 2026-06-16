@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -27,6 +28,18 @@ type DBConfig struct {
 	MaxIdleConns    int
 	ConnMaxLifetime time.Duration
 	ConnMaxIdleTime time.Duration
+}
+
+func (c DBConfig) DSN() string {
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		url.QueryEscape(c.User),
+		url.QueryEscape(c.Password),
+		c.Host,
+		c.Port,
+		c.Name,
+		c.SSLMode,
+	)
 }
 
 type CORSConfig struct {

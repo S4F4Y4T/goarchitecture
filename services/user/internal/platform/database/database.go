@@ -1,28 +1,16 @@
-package config
+package database
 
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"time"
 
+	"github.com/s4f4y4t/go-microservice/services/user/internal/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-func (c DBConfig) DSN() string {
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		url.QueryEscape(c.User),
-		url.QueryEscape(c.Password),
-		c.Host,
-		c.Port,
-		c.Name,
-		c.SSLMode,
-	)
-}
-
-func SetupDatabase(cfg DBConfig) (*gorm.DB, error) {
+func Open(cfg config.DBConfig) (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
