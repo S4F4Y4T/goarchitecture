@@ -19,7 +19,7 @@ Today only `cmd/api` exists. The sections below describe the target shape once `
         │                  │              │               │                   │
 ┌───────▼───────┐ ┌────────▼───────┐ ┌────▼────────┐ ┌────▼─────────┐ ┌───────▼───────┐
 │  user/          │ │  auth/          │ │  health/    │ │  (future)     │ │  (future)      │
-│  entity.go       │ │  dto.go          │ │  handler.go │ │  notification/│ │  module        │
+│  model.go        │ │  dto.go          │ │  handler.go │ │  notification/│ │  module        │
 │  dto.go          │ │  repository.go   │ │             │ │               │ │                │
 │  repository.go   │ │  service.go      │ │             │ │               │ │                │
 │  service.go      │ │  http_handler.go │ │             │ │               │ │                │
@@ -89,7 +89,7 @@ services/user/
     │   ├── metrics/                # Prometheus/metrics client setup
     │   └── tracing/                # OpenTelemetry tracer setup
     ├── user/
-    │   ├── entity.go               # User struct + Repository interface + ListSchema
+    │   ├── model.go                 # User struct + Repository interface + ListSchema
     │   ├── dto.go                   # CreateUserRequest, UpdateUserRequest
     │   ├── repository.go            # GORM impl of Repository — takes *gorm.DB, opens nothing itself
     │   ├── service.go                # CRUD + transactional Update
@@ -119,7 +119,7 @@ A module gains a `grpc_handler.go`, `consumer.go`, or `worker.go` only when it a
 
 ## The `user` Module
 
-`internal/user/entity.go` defines both the `User` struct and the `Repository` interface in the same package:
+`internal/user/model.go` defines both the `User` struct and the `Repository` interface in the same package:
 
 ```go
 type User struct {
@@ -172,6 +172,22 @@ type AuthService struct {
 `*user.UserRepository` already implements `ExistsByEmail`, `GetByEmail`, and `Create`, so it satisfies `UserLookup` implicitly — `app.go` passes the same repository instance to both `user.NewService` and `auth.NewService` with no extra adapter. This keeps `auth`'s coupling to `user` limited to exactly the three operations it needs, instead of the entire CRUD surface. It's still an in-process Go interface, not a network boundary — splitting `auth` into its own service would still mean replacing this with an HTTP/gRPC call to `user` — but the contract is already minimal, so that future change touches one interface, not every call site.
 
 `internal/auth/repository.go` (`RedisTokenRepository`, replacing the old `token_store.go`) implements `token.Store` from `pkg/token` — refresh tokens are stored in Redis as `refresh:<token> → userID`, independent of the `user` module's Postgres-backed repository. Like `user.Repository`, its constructor takes an already-constructed `*redis.Client` — the connection itself comes from `internal/platform/redis`, built once in `app.go`.
+
+---
+
+## Module Dependency Direction (Policy)
+
+With two modules, `auth → user` is a harmless one-way dependency. It will not stay harmless once more modules exist, so the rule is fixed now, before there's a third module to argue about:
+
+**For now: strict layered/one-way dependency direction.** Pick an explicit order (e.g. `user` is a base module; `auth`, and any future module, may depend on `user`, but `user` never imports anything from `auth` or later modules). A module may depend on modules "below" it in that order via a small interface it owns (like `auth.UserLookup`) — never the reverse, and never sideways between two modules at the same layer. If a sideways or reverse dependency seems necessary, that is the signal to stop and use the escape hatch below instead of introducing the import.
+
+**Why now, not later:** Go fails loudly on circular imports, but only at the moment someone tries to add the second direction — by then the calling code is already written and "just don't do that" stops being enough discipline to enforce by hand. Fixing the direction in writing before module count grows means new modules are designed against a known shape instead of discovering the constraint by hitting a compile error.
+
+**Future escape hatch: event-driven + ports.** When a real case for sideways or reverse coupling shows up (module B needs to react to something in module A, and A must not import B), don't bend the layering — decouple through:
+- **Ports** — B defines a small interface (a "port") expressing only what it needs, exactly like `auth.UserLookup` today; whoever can satisfy it (a direct call, an adapter, eventually a network client) is plugged in at `app.go`, not hardcoded inside B.
+- **Events** — A publishes a domain event (`UserDeleted`, `UserRegistered`) through the existing Kafka producer hook instead of calling into B directly; B's own `consumer.go` reacts to it. This is already the intended shape for the `kafka/` producer/consumer split described above — it just isn't load-bearing yet because nothing requires it.
+
+This is deferred work, not a TODO to schedule — introduce it the first time a module actually needs to go against the grain of the dependency order, not preemptively.
 
 ---
 
