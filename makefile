@@ -24,6 +24,7 @@ lint:
 
 tidy:
 	cd pkg && go mod tidy
+	cd services/auth && go mod tidy
 	cd services/user && go mod tidy
 	cd services/catalog && go mod tidy
 

@@ -4,15 +4,15 @@ import (
 	"net/http"
 
 	pkgmiddleware "github.com/s4f4y4t/go-microservice/pkg/middleware"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/health"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/user"
+	"github.com/s4f4y4t/go-microservice/services/auth/internal/auth"
+	"github.com/s4f4y4t/go-microservice/services/auth/internal/health"
 )
 
-func Register(userH *user.UserHandler, healthH *health.Handler) http.Handler {
+func Register(authH *auth.Handler, healthH *health.Handler) http.Handler {
 	mux := http.NewServeMux()
 
 	v1 := http.NewServeMux()
-	registerUserRoutes(v1, userH, pkgmiddleware.Auth())
+	registerAuthRoutes(v1, authH)
 
 	mux.Handle("/v1/", http.StripPrefix("/v1", v1))
 

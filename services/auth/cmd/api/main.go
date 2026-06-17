@@ -11,10 +11,12 @@ import (
 	"time"
 
 	"github.com/s4f4y4t/go-microservice/pkg/logger"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/app"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/config"
-	platformdatabase "github.com/s4f4y4t/go-microservice/services/user/internal/platform/database"
-	userrouter "github.com/s4f4y4t/go-microservice/services/user/internal/router"
+	"github.com/s4f4y4t/go-microservice/pkg/token"
+	"github.com/s4f4y4t/go-microservice/services/auth/internal/app"
+	"github.com/s4f4y4t/go-microservice/services/auth/internal/config"
+	platformdatabase "github.com/s4f4y4t/go-microservice/services/auth/internal/platform/database"
+	platformredis "github.com/s4f4y4t/go-microservice/services/auth/internal/platform/redis"
+	authrouter "github.com/s4f4y4t/go-microservice/services/auth/internal/router"
 )
 
 func main() {
@@ -32,9 +34,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	a := app.Build(db)
+	rdb, err := platformredis.Open(cfg.Redis)
+	if err != nil {
+		slog.Error("setting up redis", "error", err)
+		os.Exit(1)
+	}
+	defer rdb.Close()
 
-	mux := userrouter.Register(a.UserHTTPHandler, a.HealthHandler)
+	a := app.Build(db, rdb, token.NewRSAIssuer(cfg.JWT.PrivateKey), cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, cfg.JWT.CookieSecure)
+
+	mux := authrouter.Register(a.AuthHandler, a.HealthHandler)
 
 	srv := &http.Server{
 		Addr:           ":" + strconv.Itoa(cfg.Port),

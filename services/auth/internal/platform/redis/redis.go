@@ -6,14 +6,10 @@ import (
 	"time"
 
 	goredis "github.com/redis/go-redis/v9"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/config"
+	"github.com/s4f4y4t/go-microservice/services/auth/internal/config"
 )
 
-func Open(cfg *config.RedisConfig) (*goredis.Client, error) {
-	if cfg == nil {
-		return nil, nil
-	}
-
+func Open(cfg config.RedisConfig) (*goredis.Client, error) {
 	rdb := goredis.NewClient(&goredis.Options{
 		Addr:     cfg.Addr,
 		Password: cfg.Password,

@@ -19,6 +19,51 @@ consumers:
           -----END PUBLIC KEY-----
 
 services:
+  # ── Auth service — public, no JWT ────────────────────────────────────────────
+  - name: auth-service
+    url: http://auth_app:6868
+    connect_timeout: 60000
+    read_timeout: 60000
+    write_timeout: 60000
+    routes:
+      - name: auth-service-routes
+        paths:
+          - /v1/auth
+        strip_path: false
+        preserve_host: false
+        protocols:
+          - http
+
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Authorization
+            - Content-Type
+            - X-Request-ID
+          exposed_headers:
+            - X-Request-ID
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid
+          echo_downstream: true
+
   # ── User service ─────────────────────────────────────────────────────────────
   - name: user-service
     url: http://user_app:6969
@@ -26,7 +71,6 @@ services:
     read_timeout: 60000
     write_timeout: 60000
     routes:
-      # Protected routes — jwt verified, X-User-ID injected
       - name: user-service-users
         paths:
           - /v1/users
@@ -66,15 +110,6 @@ services:
                       end
                     end
                   end
-
-      # Public routes — no jwt plugin
-      - name: user-service-auth
-        paths:
-          - /v1/auth
-        strip_path: false
-        preserve_host: false
-        protocols:
-          - http
 
     plugins:
       - name: cors

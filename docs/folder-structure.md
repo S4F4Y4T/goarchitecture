@@ -10,6 +10,7 @@
 │       └── catalog/       # SQL migration files for the catalog service
 ├── deploy/
 │   ├── docker/
+│   │   ├── Dockerfile.auth
 │   │   ├── Dockerfile.user
 │   │   ├── Dockerfile.catalog
 │   │   └── Dockerfile.docs
@@ -30,18 +31,30 @@
 ├── scripts/
 │   └── migrate.sh         # migration wrapper CLI
 ├── services/
-│   ├── user/              # user service module (modular monolith — package-by-feature)
+│   ├── auth/              # auth service (register, login, refresh, logout)
 │   │   ├── cmd/api/main.go
 │   │   ├── internal/
-│   │   │   ├── bootstrap/ # composition root: wires modules together
-│   │   │   ├── config/    # service-specific config + DB/Redis setup
-│   │   │   ├── user/      # feature module: model, repository, service, handler, dto
+│   │   │   ├── app/       # composition root
+│   │   │   ├── config/    # service-specific config (DB, Redis, JWT)
 │   │   │   ├── auth/      # feature module: dto, handler, service, token store
-│   │   │   ├── health/    # feature module: liveness/readiness handler
+│   │   │   ├── user/      # minimal user model + repo (read/create only; owns no schema)
+│   │   │   ├── health/    # liveness/readiness handler
+│   │   │   ├── platform/  # DB + Redis connection helpers
 │   │   │   └── router/    # route registration
 │   │   ├── .air.toml
 │   │   └── go.mod
-│   ├── catalog/           # catalog service (identical structure)
+│   ├── user/              # user service (CRUD for users, JWT-protected by Kong)
+│   │   ├── cmd/api/main.go
+│   │   ├── internal/
+│   │   │   ├── app/       # composition root
+│   │   │   ├── config/    # service-specific config (DB only)
+│   │   │   ├── user/      # feature module: model, repository, service, handler, dto
+│   │   │   ├── health/    # liveness/readiness handler
+│   │   │   ├── platform/  # DB connection helper
+│   │   │   └── router/    # route registration
+│   │   ├── .air.toml
+│   │   └── go.mod
+│   ├── catalog/           # catalog service (identical structure to user)
 │   └── docs/              # API docs service (serves Swagger UI + openapi.yaml)
 │       ├── cmd/api/main.go
 │       ├── static/

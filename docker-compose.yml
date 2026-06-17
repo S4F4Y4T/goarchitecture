@@ -1,4 +1,43 @@
 services:
+  # ── Auth service ─────────────────────────────────────────────────────────────
+  auth_app:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.auth
+    container_name: auth_app
+    expose:
+      - "${AUTH_APP_PORT}"
+    volumes:
+      - .:/app
+      - go_cache:/root/go/pkg/mod
+    environment:
+      PORT: ${AUTH_APP_PORT}
+      LOG_LEVEL: ${AUTH_LOG_LEVEL}
+      DB_HOST: user_postgres
+      DB_PORT: 5432
+      DB_USER: ${USER_DB_USER}
+      DB_PASSWORD: ${USER_DB_PASSWORD}
+      DB_NAME: ${USER_DB_NAME}
+      DB_SSLMODE: ${USER_DB_SSLMODE}
+      DB_MAX_OPEN_CONNS: ${USER_DB_MAX_OPEN_CONNS}
+      DB_MAX_IDLE_CONNS: ${USER_DB_MAX_IDLE_CONNS}
+      DB_CONN_MAX_LIFETIME: ${USER_DB_CONN_MAX_LIFETIME}
+      DB_CONN_MAX_IDLE_TIME: ${USER_DB_CONN_MAX_IDLE_TIME}
+      CORS_ALLOWED_ORIGINS: ${AUTH_CORS_ALLOWED_ORIGINS}
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB}
+      JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH}
+      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY}
+      COOKIE_SECURE: ${COOKIE_SECURE}
+    depends_on:
+      user_postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ── User service ────────────────────────────────────────────────────────────
   user_app:
     build:
@@ -24,19 +63,8 @@ services:
       DB_CONN_MAX_LIFETIME: ${USER_DB_CONN_MAX_LIFETIME}
       DB_CONN_MAX_IDLE_TIME: ${USER_DB_CONN_MAX_IDLE_TIME}
       CORS_ALLOWED_ORIGINS: ${USER_CORS_ALLOWED_ORIGINS}
-      REDIS_ADDR: "redis:6379"
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_DB: ${REDIS_DB}
-      RATE_LIMIT_REQUESTS: ${USER_RATE_LIMIT_REQUESTS}
-      RATE_LIMIT_WINDOW: ${USER_RATE_LIMIT_WINDOW}
-      JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH}
-      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY}
-      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY}
-      COOKIE_SECURE: ${COOKIE_SECURE}
     depends_on:
       user_postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -145,6 +173,8 @@ services:
     volumes:
       - ./deploy/kong:/kong/declarative:ro
     depends_on:
+      auth_app:
+        condition: service_started
       user_app:
         condition: service_started
       catalog_app:

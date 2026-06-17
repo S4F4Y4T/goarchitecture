@@ -13,14 +13,11 @@ import (
 
 const refreshKeyPrefix = "refresh:"
 
-// RedisTokenRepository implements token.Store on top of an already-open
-// *redis.Client — it never opens a connection itself, that's
-// internal/platform/redis's job, invoked once from internal/app.
 type RedisTokenRepository struct {
 	rdb *redis.Client
 }
 
-func NewRepository(rdb *redis.Client) token.Store {
+func NewTokenRepository(rdb *redis.Client) token.Store {
 	return &RedisTokenRepository{rdb: rdb}
 }
 

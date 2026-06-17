@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/s4f4y4t/go-microservice/pkg/apperror"
 	"github.com/s4f4y4t/go-microservice/pkg/token"
-	"github.com/s4f4y4t/go-microservice/services/user/internal/user"
+	"github.com/s4f4y4t/go-microservice/services/auth/internal/user"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -19,16 +19,15 @@ type TokenPair struct {
 }
 
 // UserLookup is the slice of user.Repository that auth actually needs.
-// Owning this interface here, instead of depending on the full
-// user.Repository, keeps auth's coupling to the user module explicit and
-// minimal — any user.Repository implementation already satisfies it.
+// When gRPC is added this interface will be satisfied by a gRPC client
+// instead of a direct DB repository.
 type UserLookup interface {
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 	GetByEmail(ctx context.Context, email string) (*user.User, error)
 	Create(ctx context.Context, u *user.User) (*user.User, error)
 }
 
-type AuthService struct {
+type Service struct {
 	repo          UserLookup
 	tokenStore    token.Store
 	tokenIssuer   token.AccessIssuer
@@ -36,14 +35,14 @@ type AuthService struct {
 	refreshExpiry time.Duration
 }
 
-func NewAuthService(
+func NewService(
 	repo UserLookup,
 	tokenStore token.Store,
 	tokenIssuer token.AccessIssuer,
 	accessExpiry time.Duration,
 	refreshExpiry time.Duration,
-) *AuthService {
-	return &AuthService{
+) *Service {
+	return &Service{
 		repo:          repo,
 		tokenStore:    tokenStore,
 		tokenIssuer:   tokenIssuer,
@@ -52,7 +51,7 @@ func NewAuthService(
 	}
 }
 
-func (s *AuthService) Register(ctx context.Context, req RegisterDTO) (*user.User, error) {
+func (s *Service) Register(ctx context.Context, req RegisterDTO) (*user.User, error) {
 	exists, err := s.repo.ExistsByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, err
@@ -69,7 +68,7 @@ func (s *AuthService) Register(ctx context.Context, req RegisterDTO) (*user.User
 	return s.repo.Create(ctx, &user.User{Name: req.Name, Email: req.Email, Password: string(hashed)})
 }
 
-func (s *AuthService) Login(ctx context.Context, req LoginDTO) (TokenPair, error) {
+func (s *Service) Login(ctx context.Context, req LoginDTO) (TokenPair, error) {
 	u, err := s.repo.GetByEmail(ctx, req.Email)
 	if err != nil {
 		return TokenPair{}, apperror.Unauthorized("invalid email or password")
@@ -82,7 +81,7 @@ func (s *AuthService) Login(ctx context.Context, req LoginDTO) (TokenPair, error
 	return s.issueTokenPair(ctx, u.ID)
 }
 
-func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (TokenPair, error) {
+func (s *Service) Refresh(ctx context.Context, refreshToken string) (TokenPair, error) {
 	userID, err := s.tokenStore.UserID(ctx, refreshToken)
 	if err != nil {
 		return TokenPair{}, err
@@ -95,11 +94,11 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (TokenPa
 	return s.issueTokenPair(ctx, userID)
 }
 
-func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
+func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 	return s.tokenStore.Delete(ctx, refreshToken)
 }
 
-func (s *AuthService) issueTokenPair(ctx context.Context, userID int) (TokenPair, error) {
+func (s *Service) issueTokenPair(ctx context.Context, userID int) (TokenPair, error) {
 	accessToken, err := s.tokenIssuer.Issue(userID, s.accessExpiry)
 	if err != nil {
 		return TokenPair{}, apperror.Internal(err)

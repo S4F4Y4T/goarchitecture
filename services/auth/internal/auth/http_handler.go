@@ -11,16 +11,16 @@ import (
 
 const refreshCookieName = "refresh_token"
 
-type AuthHandler struct {
-	service      *AuthService
+type Handler struct {
+	service      *Service
 	cookieSecure bool
 }
 
-func NewAuthHandler(service *AuthService, cookieSecure bool) *AuthHandler {
-	return &AuthHandler{service: service, cookieSecure: cookieSecure}
+func NewHandler(service *Service, cookieSecure bool) *Handler {
+	return &Handler{service: service, cookieSecure: cookieSecure}
 }
 
-func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterDTO
 	if err := request.DecodeJSON(w, r, &req); err != nil {
 		response.Error(w, r, err)
@@ -40,7 +40,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, http.StatusCreated, "User registered successfully", u)
 }
 
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginDTO
 	if err := request.DecodeJSON(w, r, &req); err != nil {
 		response.Error(w, r, err)
@@ -64,7 +64,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(refreshCookieName)
 	if err != nil {
 		response.Error(w, r, apperror.Unauthorized("missing refresh token"))
@@ -84,7 +84,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(refreshCookieName)
 	if err == nil {
 		_ = h.service.Logout(r.Context(), cookie.Value)
@@ -94,7 +94,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	response.NoContent(w)
 }
 
-func (h *AuthHandler) setRefreshCookie(w http.ResponseWriter, value string, maxAge int) {
+func (h *Handler) setRefreshCookie(w http.ResponseWriter, value string, maxAge int) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     refreshCookieName,
 		Value:    value,
