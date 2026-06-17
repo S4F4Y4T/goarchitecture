@@ -197,5 +197,13 @@ func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block from %s", path)
 	}
-	return x509.ParsePKCS1PrivateKey(block.Bytes)
+	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	rsaKey, ok := key.(*rsa.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("key at %s is not an RSA private key", path)
+	}
+	return rsaKey, nil
 }

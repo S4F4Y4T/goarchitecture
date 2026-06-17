@@ -9,13 +9,13 @@ consumers:
         key: go-microservice
         rsa_public_key: |
           -----BEGIN PUBLIC KEY-----
-          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuDcSTizHHCuqYxz2Ey76
-          rfdgac/XycwJvz8Nf1yWKwZ054cU5GH0gco/LCjuSXCYJvif/UpJ05mAZ4wolilR
-          sTb8PhidpV3Gb4ZIeSpsmsTiBZKuVjTH7R6w7Zv969qwFsz+Bkkh4FoD+XfpH9qa
-          fqv9aGfj2+or0muhJgTS4ySUylohKGqWf0LWRG+Ti6lmeIA4/02qJ+HIElH2Yby2
-          CPlNpszt2mix5sCcZax9NkuwJRoQl1Rlp6WmzHB4U82a7sYwj2cwsZ3zc9ZOyTfF
-          KO7v+baIKsjeYChZS6HTFdKW9r2Im/5yF9SOdpI2UEvbkcNSuhYiAdrF1s7F92p/
-          GQIDAQAB
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA59iOBoE8gNp2Hy2RyT5r
+          5cVAoVYWEOexQTn5N8FX72LfUwZ/2dPNkL0RuG/WtOBpQzX6P1PCQo7Y+TLueAoV
+          3sZlZI34OWFvF/Ej82HYGKXb4Rsm+0TnmHW3MA/OKpG3I2jBnaUxrsjjYrxUkdD4
+          zWnH/A4DSDvc2lnKZQ8yQgkl4s80+awDGdSbp3VmOJJhRqdmfdlHpyBfpDkxfCna
+          kAFPHI/ViiEur3kMYMspaBPnLgjgvIxzG6FVefB7juzTX88qVGMSUx2phSFsXgXe
+          dtDcvWu9tJ4UWKjBzGnuQGTzV9GgmsWyXRYvwoJzEMbIT4pqlJqVu9Z8KGi0v/dh
+          oQIDAQAB
           -----END PUBLIC KEY-----
 
 services:
@@ -29,6 +29,14 @@ services:
       - name: auth-service-routes
         paths:
           - /v1/auth
+        strip_path: false
+        preserve_host: false
+        protocols:
+          - http
+      - name: auth-health-routes
+        paths:
+          - /healthz
+          - /readyz
         strip_path: false
         preserve_host: false
         protocols:

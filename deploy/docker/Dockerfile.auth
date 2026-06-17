@@ -11,6 +11,7 @@ COPY pkg/go.mod pkg/go.sum ./pkg/
 COPY services/auth/go.mod services/auth/go.sum ./services/auth/
 COPY services/user/go.mod services/user/go.sum ./services/user/
 COPY services/catalog/go.mod services/catalog/go.sum ./services/catalog/
+COPY services/docs/go.mod ./services/docs/
 
 RUN go mod download
 

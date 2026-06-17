@@ -3,15 +3,21 @@ package repository
 import (
 	"context"
 	"errors"
-	"github.com/s4f4y4t/go-microservice/pkg/apperror"
-	"github.com/s4f4y4t/go-microservice/services/catalog/internal/model"
-	"github.com/s4f4y4t/go-microservice/pkg/pagination"
-	gormquery "github.com/s4f4y4t/go-microservice/pkg/query/gorm"
-	"github.com/s4f4y4t/go-microservice/pkg/query"
 	"strconv"
 
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/s4f4y4t/go-microservice/pkg/apperror"
+	"github.com/s4f4y4t/go-microservice/pkg/pagination"
+	"github.com/s4f4y4t/go-microservice/pkg/query"
+	gormquery "github.com/s4f4y4t/go-microservice/pkg/query/gorm"
+	"github.com/s4f4y4t/go-microservice/services/catalog/internal/model"
 	"gorm.io/gorm"
 )
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
 
 type ProductRepository struct {
 	db *gorm.DB
