@@ -40,9 +40,9 @@ Services are separated by **domain** (bounded context), not by technical layer:
 - **user service**: everything about users — registration, profile, lookup
 - **catalog service**: everything about products — name, description, price
 
-Each service exposes a REST API over HTTP. Communication between services (not yet implemented) will use:
-- **Synchronous**: service-to-service HTTP (with circuit breaking, retries)
-- **Asynchronous**: message queue (NATS / RabbitMQ / Kafka) for events like "user created"
+Each service exposes a REST API over HTTP for clients. Service-to-service calls use:
+- **Synchronous**: gRPC — currently `auth` → `user` only, see [grpc.md](grpc.md)
+- **Asynchronous**: message queue (NATS / RabbitMQ / Kafka) for events like "user created" — not yet implemented
 
 ## Health Endpoints
 
@@ -78,5 +78,5 @@ URL versioning is more explicit, easier to test in a browser, simpler to proxy, 
 ## Alternatives Considered
 
 - **Monolithic service** — everything in one binary. Simpler initially. Harder to scale individual domains. Rejected because the explicit goal is microservice patterns.
-- **gRPC between services** — more efficient binary protocol, strongly typed contracts. Deferred; adds complexity (protobuf, service reflection). HTTP first, gRPC when performance demands it.
+- **HTTP+JSON between services instead of gRPC** — simpler, no protobuf toolchain. Used for the `auth` → `user` call specifically because it's the highest-frequency internal hop and benefits from a generated, typed contract; see [grpc.md](grpc.md).
 - **Shared database** — single Postgres with separate schemas per service. Easier joins, harder to isolate failures and deployments. Rejected.

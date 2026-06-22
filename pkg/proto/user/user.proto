@@ -1,0 +1,29 @@
+syntax = "proto3";
+package user;
+option go_package = "github.com/s4f4y4t/go-microservice/pkg/proto/user";
+
+service UserService {
+  rpc ExistsByEmail(ExistsByEmailRequest) returns (ExistsByEmailResponse);
+  rpc GetByEmail(GetByEmailRequest) returns (UserResponse);
+  rpc Create(CreateRequest) returns (UserResponse);
+}
+
+message ExistsByEmailRequest { string email = 1; }
+message ExistsByEmailResponse { bool exists = 1; }
+
+message GetByEmailRequest { string email = 1; }
+
+message CreateRequest {
+  string name     = 1;
+  string email    = 2;
+  string password = 3;
+}
+
+message UserResponse {
+  int32  id         = 1;
+  string name       = 2;
+  string email      = 3;
+  string password   = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}

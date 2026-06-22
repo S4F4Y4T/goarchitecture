@@ -4,11 +4,11 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	pb "github.com/s4f4y4t/go-microservice/pkg/proto/user"
 	"github.com/s4f4y4t/go-microservice/pkg/token"
 	"github.com/s4f4y4t/go-microservice/services/auth/internal/auth"
 	"github.com/s4f4y4t/go-microservice/services/auth/internal/health"
 	"github.com/s4f4y4t/go-microservice/services/auth/internal/user"
-	"gorm.io/gorm"
 )
 
 type App struct {
@@ -16,14 +16,14 @@ type App struct {
 	HealthHandler *health.Handler
 }
 
-func Build(db *gorm.DB, rdb *redis.Client, tokenIssuer token.AccessIssuer, accessExpiry, refreshExpiry time.Duration, cookieSecure bool) *App {
-	userRepo := user.NewRepository(db)
+func Build(userClient pb.UserServiceClient, rdb *redis.Client, tokenIssuer token.AccessIssuer, accessExpiry, refreshExpiry time.Duration, cookieSecure bool) *App {
+	userLookup := user.NewClient(userClient)
 	tokenStore := auth.NewTokenRepository(rdb)
 
-	authSvc := auth.NewService(userRepo, tokenStore, tokenIssuer, accessExpiry, refreshExpiry)
+	authSvc := auth.NewService(userLookup, tokenStore, tokenIssuer, accessExpiry, refreshExpiry)
 
 	return &App{
 		AuthHandler:   auth.NewHandler(authSvc, cookieSecure),
-		HealthHandler: health.NewHandler(db),
+		HealthHandler: health.NewHandler(rdb),
 	}
 }

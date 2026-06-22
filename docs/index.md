@@ -31,6 +31,7 @@ Design decision docs for this Go microservice project. Each doc covers the **wha
 | HTTP Server & Graceful Shutdown | [http-server.md](http-server.md) | Timeouts (read/write/idle), MaxHeaderBytes, SIGTERM drain |
 | Docker & Containerization | [docker.md](docker.md) | Dev images, docker-compose, port strategy, health checks |
 | API Gateway | [api-gateway.md](api-gateway.md) | Kong DB-less mode, routing, CORS/rate-limit/correlation-ID plugins |
+| gRPC (East-West) | [grpc.md](grpc.md) | auth ↔ user service contract, server/client wiring, error-code mapping, known gaps |
 | API Docs (Swagger UI) | [api-docs.md](api-docs.md) | Dedicated docs service, single combined spec, served through Kong |
 | Internal Architecture & Alternatives | [internal-architecture.md](internal-architecture.md) | Modular Monolith (chosen) vs Layered vs Clean vs Hexagonal vs DDD vs CQRS — when to choose which |
 | User Service — Modular Monolith | [user-service-architecture.md](user-service-architecture.md) | Module map (user/auth/health), the auth→user coupling to watch, DDD-lite rationale, improvement suggestions |

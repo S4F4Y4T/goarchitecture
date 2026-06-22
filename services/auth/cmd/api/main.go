@@ -11,12 +11,14 @@ import (
 	"time"
 
 	"github.com/s4f4y4t/go-microservice/pkg/logger"
+	pb "github.com/s4f4y4t/go-microservice/pkg/proto/user"
 	"github.com/s4f4y4t/go-microservice/pkg/token"
 	"github.com/s4f4y4t/go-microservice/services/auth/internal/app"
 	"github.com/s4f4y4t/go-microservice/services/auth/internal/config"
-	platformdatabase "github.com/s4f4y4t/go-microservice/services/auth/internal/platform/database"
 	platformredis "github.com/s4f4y4t/go-microservice/services/auth/internal/platform/redis"
 	authrouter "github.com/s4f4y4t/go-microservice/services/auth/internal/router"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -28,12 +30,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := platformdatabase.Open(cfg.DB)
-	if err != nil {
-		slog.Error("setting up database", "error", err)
-		os.Exit(1)
-	}
-
 	rdb, err := platformredis.Open(cfg.Redis)
 	if err != nil {
 		slog.Error("setting up redis", "error", err)
@@ -41,7 +37,15 @@ func main() {
 	}
 	defer rdb.Close()
 
-	a := app.Build(db, rdb, token.NewRSAIssuer(cfg.JWT.PrivateKey), cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, cfg.JWT.CookieSecure)
+	userConn, err := grpc.NewClient(cfg.UserGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		slog.Error("connecting to user grpc service", "error", err)
+		os.Exit(1)
+	}
+	defer userConn.Close()
+	userClient := pb.NewUserServiceClient(userConn)
+
+	a := app.Build(userClient, rdb, token.NewRSAIssuer(cfg.JWT.PrivateKey), cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, cfg.JWT.CookieSecure)
 
 	mux := authrouter.Register(a.AuthHandler, a.HealthHandler)
 

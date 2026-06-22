@@ -9,6 +9,7 @@ import (
 type App struct {
 	UserHTTPHandler *user.UserHandler
 	HealthHandler   *health.Handler
+	UserGRPCServer  *user.GRPCServer
 }
 
 func Build(db *gorm.DB) *App {
@@ -16,6 +17,7 @@ func Build(db *gorm.DB) *App {
 	userSvc := user.NewUserService(userRepo)
 
 	return &App{
+		UserGRPCServer:  user.NewGRPCServer(userSvc),
 		UserHTTPHandler: user.NewUserHandler(userSvc),
 		HealthHandler:   health.NewHandler(db),
 	}

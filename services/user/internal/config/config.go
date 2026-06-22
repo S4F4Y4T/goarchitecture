@@ -44,9 +44,10 @@ type CORSConfig struct {
 }
 
 type Config struct {
-	Port int
-	DB   DBConfig
-	CORS CORSConfig
+	Port     int
+	GRPCPort int
+	DB       DBConfig
+	CORS     CORSConfig
 }
 
 func LoadConfig() (*Config, error) {
@@ -57,15 +58,21 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("PORT is missing or invalid")
 	}
 
+	grpcPortInt := pkgconfig.GetEnvInt("GRPC_PORT", 0)
+	if grpcPortInt == 0 {
+		return nil, fmt.Errorf("GRPC_PORT is missing or invalid")
+	}
+
 	db, err := loadDBConfig()
 	if err != nil {
 		return nil, err
 	}
 
 	return &Config{
-		Port: portInt,
-		DB:   db,
-		CORS: loadCORSConfig(),
+		Port:     portInt,
+		GRPCPort: grpcPortInt,
+		DB:       db,
+		CORS:     loadCORSConfig(),
 	}, nil
 }
 

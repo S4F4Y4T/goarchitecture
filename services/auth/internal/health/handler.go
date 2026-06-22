@@ -5,16 +5,16 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/s4f4y4t/go-microservice/pkg/response"
-	"gorm.io/gorm"
 )
 
 type Handler struct {
-	db *gorm.DB
+	rdb *redis.Client
 }
 
-func NewHandler(db *gorm.DB) *Handler {
-	return &Handler{db: db}
+func NewHandler(rdb *redis.Client) *Handler {
+	return &Handler{rdb: rdb}
 }
 
 func (h *Handler) Live(w http.ResponseWriter, r *http.Request) {
@@ -25,14 +25,10 @@ func (h *Handler) Ready(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
-	sqlDB, err := h.db.DB()
-	if err == nil {
-		err = sqlDB.PingContext(ctx)
-	}
-	if err != nil {
+	if err := h.rdb.Ping(ctx).Err(); err != nil {
 		response.JSONResponse(w, http.StatusServiceUnavailable, response.ApiResponse{
 			Success: false,
-			Message: "database unreachable",
+			Message: "redis unreachable",
 		})
 		return
 	}

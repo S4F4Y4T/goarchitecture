@@ -77,6 +77,7 @@ user.UserRepository   ← GORM implementation (same package, conforms to the int
 
 - **Modules share one process and one deploy.** This is what makes it a *monolith*, not a set of microservices, even though `auth` and `user` are conceptually separate domains.
 - **Module boundaries are deliberately narrow at the one cross-module dependency.** `auth.Service` depends on `auth.UserLookup` (`internal/auth/service.go`) — a 3-method interface owned by `auth` itself — rather than the full `user.Repository`. `*user.UserRepository` satisfies it implicitly, so `bootstrap` wires them together with no extra glue. This is the seam that would need to move to a real network call before `auth` could be extracted into its own service, but the contract `auth` depends on is already minimal.
+- **Not Vertical Slice Architecture** — true vertical slices cut per *use case* (one independent slice per `CreateUser`, `UpdateUser`, etc., each free to duplicate logic instead of sharing a layer). Here, every operation on a module shares one `Repository`, one `Service`, and one `Handler` for the whole domain (e.g. `user.Service.Create/Get/Update/Delete` all live in one `service.go`). The slice is the *module* (domain), not the *use case* — that's package-by-feature, and the internal handler→service→repository layering is preserved, just colocated per module instead of spread across top-level layer folders.
 - **Not Clean Architecture** — there's no Use Cases/Interactors layer, and handlers call concrete `*Service` structs, not interfaces.
 - **Not Hexagonal** — no named inbound/outbound ports; the only inverted boundary is the repository.
 - **Not DDD** — `User` is an anemic struct (no behavior, no value objects); business rules live in the service, not the model.
@@ -186,9 +187,10 @@ Split the request path into **Commands** (writes, go through the domain model + 
 | Concept            | Category                         |
 | ------------------ | --------------------------------- |
 | Layered            | Structural Architecture          |
+| Package-by-Feature  | Structural Architecture          |
 | Clean               | Structural Architecture          |
 | Hexagonal           | Structural Architecture          |
-| Vertical Slice / Package-by-Feature | Structural Architecture |
+| Vertical Slice       | Structural Architecture          |
 | DDD                  | Domain Modeling Discipline       |
 | CQRS                 | Architectural Pattern            |
 | Event Sourcing       | Persistence Pattern              |

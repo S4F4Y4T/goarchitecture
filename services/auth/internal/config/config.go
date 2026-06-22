@@ -6,7 +6,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -15,32 +14,6 @@ import (
 
 	"github.com/joho/godotenv"
 )
-
-type DBConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Name     string
-	SSLMode  string
-
-	MaxOpenConns    int
-	MaxIdleConns    int
-	ConnMaxLifetime time.Duration
-	ConnMaxIdleTime time.Duration
-}
-
-func (c DBConfig) DSN() string {
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		url.QueryEscape(c.User),
-		url.QueryEscape(c.Password),
-		c.Host,
-		c.Port,
-		c.Name,
-		c.SSLMode,
-	)
-}
 
 type RedisConfig struct {
 	Addr     string
@@ -60,11 +33,11 @@ type CORSConfig struct {
 }
 
 type Config struct {
-	Port  int
-	DB    DBConfig
-	Redis RedisConfig
-	JWT   JWTConfig
-	CORS  CORSConfig
+	Port         int
+	UserGRPCAddr string
+	Redis        RedisConfig
+	JWT          JWTConfig
+	CORS         CORSConfig
 }
 
 func LoadConfig() (*Config, error) {
@@ -75,9 +48,9 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("PORT is missing or invalid")
 	}
 
-	db, err := loadDBConfig()
-	if err != nil {
-		return nil, err
+	userGRPCAddr := os.Getenv("USER_GRPC_ADDR")
+	if userGRPCAddr == "" {
+		return nil, fmt.Errorf("USER_GRPC_ADDR is required")
 	}
 
 	redis, err := loadRedisConfig()
@@ -91,54 +64,12 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &Config{
-		Port:  portInt,
-		DB:    db,
-		Redis: redis,
-		JWT:   jwt,
-		CORS:  loadCORSConfig(),
+		Port:         portInt,
+		UserGRPCAddr: userGRPCAddr,
+		Redis:        redis,
+		JWT:          jwt,
+		CORS:         loadCORSConfig(),
 	}, nil
-}
-
-func loadDBConfig() (DBConfig, error) {
-	db := DBConfig{
-		Host:     os.Getenv("DB_HOST"),
-		Port:     os.Getenv("DB_PORT"),
-		User:     os.Getenv("DB_USER"),
-		Password: os.Getenv("DB_PASSWORD"),
-		Name:     os.Getenv("DB_NAME"),
-		SSLMode:  os.Getenv("DB_SSLMODE"),
-	}
-
-	missing := []string{}
-	if db.Host == "" {
-		missing = append(missing, "DB_HOST")
-	}
-	if db.Port == "" {
-		missing = append(missing, "DB_PORT")
-	}
-	if db.User == "" {
-		missing = append(missing, "DB_USER")
-	}
-	if db.Password == "" {
-		missing = append(missing, "DB_PASSWORD")
-	}
-	if db.Name == "" {
-		missing = append(missing, "DB_NAME")
-	}
-	if len(missing) > 0 {
-		return DBConfig{}, fmt.Errorf("missing database env vars: %v", missing)
-	}
-
-	if db.SSLMode == "" {
-		db.SSLMode = "disable"
-	}
-
-	db.MaxOpenConns = pkgconfig.GetEnvInt("DB_MAX_OPEN_CONNS", 25)
-	db.MaxIdleConns = pkgconfig.GetEnvInt("DB_MAX_IDLE_CONNS", 25)
-	db.ConnMaxLifetime = pkgconfig.GetEnvDuration("DB_CONN_MAX_LIFETIME", 5*time.Minute)
-	db.ConnMaxIdleTime = pkgconfig.GetEnvDuration("DB_CONN_MAX_IDLE_TIME", 5*time.Minute)
-
-	return db, nil
 }
 
 func loadRedisConfig() (RedisConfig, error) {
