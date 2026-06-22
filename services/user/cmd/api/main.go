@@ -8,9 +8,11 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
+	"github.com/s4f4y4t/go-microservice/pkg/grpcmiddleware"
 	"github.com/s4f4y4t/go-microservice/pkg/logger"
 	pb "github.com/s4f4y4t/go-microservice/pkg/proto/user"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/app"
@@ -18,8 +20,7 @@ import (
 	platformdatabase "github.com/s4f4y4t/go-microservice/services/user/internal/platform/database"
 	userrouter "github.com/s4f4y4t/go-microservice/services/user/internal/router"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/keepalive"
 )
 
 func main() {
@@ -39,7 +40,13 @@ func main() {
 
 	a := app.Build(db)
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(recoveryInterceptor))
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(grpcmiddleware.Logger, grpcmiddleware.Recovery),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			Time:    30 * time.Second,
+			Timeout: 10 * time.Second,
+		}),
+	)
 	pb.RegisterUserServiceServer(grpcServer, a.UserGRPCServer)
 	lis, err := net.Listen("tcp", ":"+strconv.Itoa(cfg.GRPCPort))
 	if err != nil {
@@ -78,28 +85,34 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
+	slog.Info("shutting down server")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	slog.Info("shutting down server")
+	var wg sync.WaitGroup
+	exitCode := 0
 
-	grpcServer.GracefulStop()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		slog.Error("server forced to shutdown", "error", err)
-		os.Exit(1)
-	}
-}
-
-// recoveryInterceptor turns a panic in an RPC handler into an Internal error
-// instead of crashing the process, mirroring pkgmiddleware.PanicRecovery on
-// the HTTP side.
-func recoveryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			slog.Error("grpc handler panic", "method", info.FullMethod, "panic", r)
-			err = status.Error(codes.Internal, "internal server error")
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		// If GracefulStop hasn't finished by the deadline, force-stop it so
+		// the process doesn't hang on a slow/stuck in-flight RPC.
+		stopWaiting := context.AfterFunc(ctx, func() {
+			slog.Warn("grpc graceful stop timed out, forcing stop")
+			grpcServer.Stop()
+		})
+		grpcServer.GracefulStop()
+		stopWaiting()
+	}()
+	go func() {
+		defer wg.Done()
+		if err := srv.Shutdown(ctx); err != nil {
+			slog.Error("server forced to shutdown", "error", err)
+			exitCode = 1
 		}
 	}()
-	return handler(ctx, req)
+	wg.Wait()
+
+	os.Exit(exitCode)
 }
