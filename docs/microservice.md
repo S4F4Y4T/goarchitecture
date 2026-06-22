@@ -7,14 +7,13 @@ Each service owns its own Postgres instance. No shared tables, no cross-service 
 | Service | Database | Port (host) |
 |---|---|---|
 | user | user_db | 5433 |
-| catalog | catalog_db | 5434 |
 
-Services never reach into another service's database. If the user service needs product data, it will call the catalog service's HTTP API (or consume an event — future work).
+Services never reach into another service's database. If one service needs another's data, it calls that service's API (HTTP or gRPC) or consumes an event — never a direct query against its tables.
 
 **Why?**
-- Independent deployability: upgrading catalog's schema does not require coordinating with the user service.
-- Failure isolation: if catalog's DB goes down, the user service continues serving.
-- Clear ownership: the team responsible for catalog owns its schema migrations, indices, and tuning decisions.
+- Independent deployability: upgrading one service's schema does not require coordinating with another.
+- Failure isolation: if one service's DB goes down, the others continue serving.
+- Clear ownership: the team responsible for a service owns its schema migrations, indices, and tuning decisions.
 
 **Tradeoff**: No cross-service SQL joins. Aggregation across services requires either service-to-service calls or an event-driven read model. Accepted — this is the fundamental microservice tradeoff.
 
@@ -38,7 +37,6 @@ This identical top-level shape (`bootstrap/`, `config/`, one package per feature
 
 Services are separated by **domain** (bounded context), not by technical layer:
 - **user service**: everything about users — registration, profile, lookup
-- **catalog service**: everything about products — name, description, price
 
 Each service exposes a REST API over HTTP for clients. Service-to-service calls use:
 - **Synchronous**: gRPC — currently `auth` → `user` only, see [grpc.md](grpc.md)

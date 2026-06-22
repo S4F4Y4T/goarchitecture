@@ -84,7 +84,7 @@ userClient := pb.NewUserServiceClient(userConn)
 
 ### Layout convention: `internal/clients/<service>/`
 
-Outbound gRPC clients live under `internal/clients/<service>/`, one package per remote dependency, named after the service it talks to (`clients/user/`, and `clients/catalog/` whenever auth or any other service needs to call catalog). The package itself keeps a plain name (`user`, not `userclient`) — the `clients/` parent already supplies the "this is a remote dependency, not a domain I own" context, so the leaf name doesn't need to repeat it.
+Outbound gRPC clients live under `internal/clients/<service>/`, one package per remote dependency, named after the service it talks to (`clients/user/` today; e.g. `clients/video/` for any future service that needs to call a `video` service). The package itself keeps a plain name (`user`, not `userclient`) — the `clients/` parent already supplies the "this is a remote dependency, not a domain I own" context, so the leaf name doesn't need to repeat it.
 
 This is distinct from `services/user/internal/user/` — that's the real domain (model, repository, service, handlers); `services/auth/internal/clients/user/` is a thin adapter (one `Client` struct, one DTO) that happens to share a package name because it represents the same concept from the consuming side.
 

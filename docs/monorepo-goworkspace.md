@@ -2,7 +2,7 @@
 
 ## What We Did
 
-Three separate Go modules in one Git repository, linked by a `go.work` file:
+Separate Go modules in one Git repository, linked by a `go.work` file:
 
 ```
 go.work
@@ -10,7 +10,6 @@ go 1.25
 use (
     ./pkg
     ./services/user
-    ./services/catalog
 )
 ```
 
@@ -52,7 +51,6 @@ This was error-prone (forget to remove before tagging a release) and made CI inc
 |---|---|---|
 | `pkg` | `github.com/s4f4y4t/go-microservice/pkg` | All shared, domain-agnostic code |
 | `services/user` | `github.com/s4f4y4t/go-microservice/services/user` | User domain — models, repo, service, handler |
-| `services/catalog` | `github.com/s4f4y4t/go-microservice/services/catalog` | Catalog domain |
 
 Services **never import each other**. All cross-service communication will go through HTTP or message queues (future).
 

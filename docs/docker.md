@@ -11,13 +11,12 @@ RUN go install github.com/air-verse/air@latest
 COPY go.work go.work.sum ./
 COPY pkg/go.mod pkg/go.sum ./pkg/
 COPY services/user/go.mod services/user/go.sum ./services/user/
-COPY services/catalog/go.mod services/catalog/go.sum ./services/catalog/
 COPY services/docs/go.mod ./services/docs/
 RUN go mod download
 CMD ["air", "-c", "services/user/.air.toml"]
 ```
 
-Each service has its own Dockerfile (`Dockerfile.user`, `Dockerfile.catalog`, `Dockerfile.docs`) following this same pattern, with the `CMD` pointing at the appropriate `.air.toml`. The `docs` service has no external Go dependencies so it has no `go.sum`.
+Each service has its own Dockerfile (`Dockerfile.user`, `Dockerfile.auth`, `Dockerfile.docs`) following this same pattern, with the `CMD` pointing at the appropriate `.air.toml`. The `docs` service has no external Go dependencies so it has no `go.sum`.
 
 The source code is **not** copied into the image at build time. It is mounted as a volume at runtime via `docker-compose.yml`. This means `docker compose up` reflects code changes immediately (via air) without rebuilding the image.
 
@@ -27,10 +26,9 @@ The project is in active development. A production image (Go builder stage → d
 ## Docker Compose Services
 
 ```
+auth_app         — auth service (exposed to Docker network only)
 user_app         — user service (exposed to Docker network only)
 user_postgres    — postgres:17-alpine (port 5433 on host)
-catalog_app      — catalog service (exposed to Docker network only)
-catalog_postgres — postgres:17-alpine (port 5434 on host)
 docs_app         — API docs service / Swagger UI (exposed to Docker network only)
 redis            — redis:7-alpine (port 6380 on host)
 kong             — Kong gateway (port 8100→8000 proxy, port 8101→8001 admin on host)
@@ -44,18 +42,17 @@ Standard ports (5432, 6379) are deliberately avoided on the host side:
 | Service | Container port | Host port | Why offset |
 |---|---|---|---|
 | user_postgres | 5432 | 5433 | Avoids collision with any local Postgres |
-| catalog_postgres | 5432 | 5434 | Separate host port per service DB |
 | redis | 6379 | 6380 | Avoids collision with any local Redis |
 
 A developer can run `docker compose up` even if they have a local Postgres or Redis already running on the standard ports.
 
 ### Database Per Service
 
-Each service gets its own Postgres container with its own volume (`user_postgres_data`, `catalog_postgres_data`). They never share a container or a volume. This mirrors the production architecture (database-per-service) so local dev matches prod behavior.
+Each service that needs Postgres gets its own container with its own volume (`user_postgres_data`). Services never share a container or a volume. This mirrors the production architecture (database-per-service) so local dev matches prod behavior.
 
-### Shared Redis
+### Redis
 
-Both services connect to the same Redis container. Rate-limit counters are namespaced per service (`rl:user:<ip>` vs `rl:catalog:<ip>`) so there's no collision. A single Redis is simpler to run locally; in production each service can have its own Redis cluster.
+Currently only `auth_app` connects to Redis, for refresh-token storage (`refresh:<token>` keys). The container is provisioned as shared infrastructure so any other service that needs Redis (rate limiting, caching) can connect to the same instance without adding a new container; keys would be namespaced per service to avoid collisions.
 
 ### Health Checks
 

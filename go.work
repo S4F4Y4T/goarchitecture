@@ -3,7 +3,6 @@ go 1.25.0
 use (
 	./pkg
 	./services/auth
-	./services/catalog
 	./services/docs
 	./services/user
 )

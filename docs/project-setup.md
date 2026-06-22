@@ -10,11 +10,11 @@ The `makefile` exposes a `SVC` variable (default: `user`) so the same targets wo
 
 ```bash
 make run SVC=user        # go run the user service
-make dev SVC=catalog     # hot-reload the catalog service with air
+make dev SVC=user        # hot-reload the user service with air
 make build SVC=user      # compile binary → ./bin/user
 make migrate-up SVC=user # apply pending DB migrations
 make migrate-create SVC=user name=add_phone  # scaffold new migration pair
-make tidy                # go mod tidy across all three modules
+make tidy                # go mod tidy across all modules
 make test                # run all tests
 make lint                # run golangci-lint
 make clean               # remove bin/ and tmp/
@@ -54,8 +54,7 @@ All config is read from environment variables. `godotenv` loads a `.env` file at
 ```
 USER_APP_PORT=6969
 USER_DB_PASSWORD=<change-me>
-CATALOG_APP_PORT=7070
-CATALOG_DB_PASSWORD=<change-me>
+AUTH_APP_PORT=6868
 REDIS_PORT=6380
 REDIS_PASSWORD=<change-me>
 JWT_PRIVATE_KEY_PATH=/app/deploy/kong/jwt.key

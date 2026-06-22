@@ -78,60 +78,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Catalog service ─────────────────────────────────────────────────────────
-  catalog_app:
-    build:
-      context: .
-      dockerfile: deploy/docker/Dockerfile.catalog
-    container_name: catalog_app
-    expose:
-      - "${CATALOG_APP_PORT}"
-    volumes:
-      - .:/app
-      - go_cache:/root/go/pkg/mod
-    environment:
-      PORT: ${CATALOG_APP_PORT}
-      LOG_LEVEL: ${CATALOG_LOG_LEVEL}
-      DB_HOST: catalog_postgres
-      DB_PORT: 5432
-      DB_USER: ${CATALOG_DB_USER}
-      DB_PASSWORD: ${CATALOG_DB_PASSWORD}
-      DB_NAME: ${CATALOG_DB_NAME}
-      DB_SSLMODE: ${CATALOG_DB_SSLMODE}
-      DB_MAX_OPEN_CONNS: ${CATALOG_DB_MAX_OPEN_CONNS}
-      DB_MAX_IDLE_CONNS: ${CATALOG_DB_MAX_IDLE_CONNS}
-      DB_CONN_MAX_LIFETIME: ${CATALOG_DB_CONN_MAX_LIFETIME}
-      DB_CONN_MAX_IDLE_TIME: ${CATALOG_DB_CONN_MAX_IDLE_TIME}
-      CORS_ALLOWED_ORIGINS: ${CATALOG_CORS_ALLOWED_ORIGINS}
-      REDIS_ADDR: "redis:6379"
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_DB: ${REDIS_DB}
-      RATE_LIMIT_REQUESTS: ${CATALOG_RATE_LIMIT_REQUESTS}
-      RATE_LIMIT_WINDOW: ${CATALOG_RATE_LIMIT_WINDOW}
-    depends_on:
-      catalog_postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  catalog_postgres:
-    image: postgres:17-alpine
-    container_name: catalog_postgres
-    environment:
-      POSTGRES_USER: ${CATALOG_DB_USER}
-      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD}
-      POSTGRES_DB: ${CATALOG_DB_NAME}
-    ports:
-      - "${CATALOG_DB_PORT}:5432"
-    volumes:
-      - catalog_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${CATALOG_DB_USER} -d ${CATALOG_DB_NAME}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # ── Docs service ─────────────────────────────────────────────────────────────
   docs_app:
     build:
@@ -170,8 +116,6 @@ services:
         condition: service_started
       user_app:
         condition: service_started
-      catalog_app:
-        condition: service_started
       docs_app:
         condition: service_started
     healthcheck:
@@ -208,12 +152,10 @@ services:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
       - user_postgres
-      - catalog_postgres
     restart: unless-stopped
 
 volumes:
   user_postgres_data:
-  catalog_postgres_data:
   redis_data:
   pgadmin_data:
   go_cache:

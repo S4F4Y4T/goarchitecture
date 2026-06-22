@@ -6,13 +6,11 @@
 /var/www/microservice/
 ├── database/
 │   └── migrations/
-│       ├── user/          # SQL migration files for the user service
-│       └── catalog/       # SQL migration files for the catalog service
+│       └── user/          # SQL migration files for the user service
 ├── deploy/
 │   ├── docker/
 │   │   ├── Dockerfile.auth
 │   │   ├── Dockerfile.user
-│   │   ├── Dockerfile.catalog
 │   │   └── Dockerfile.docs
 │   └── kong/
 │       ├── kong.yml           # Kong declarative config (routes, plugins, consumers)
@@ -57,7 +55,6 @@
 │   │   │   └── router/    # route registration
 │   │   ├── .air.toml
 │   │   └── go.mod
-│   ├── catalog/           # catalog service (identical structure to user)
 │   └── docs/              # API docs service (serves Swagger UI + openapi.yaml)
 │       ├── cmd/api/main.go
 │       ├── static/

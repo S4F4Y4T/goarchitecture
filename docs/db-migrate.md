@@ -7,14 +7,11 @@ We use [`golang-migrate`](https://github.com/golang-migrate/migrate) — a stand
 Migration files live at:
 ```
 database/migrations/
-├── user/
-│   ├── 000001_create_users.up.sql
-│   ├── 000001_create_users.down.sql
-│   ├── 000003_add_timestamps_to_users.up.sql
-│   └── 000003_add_timestamps_to_users.down.sql
-└── catalog/
-    ├── 000001_create_products.up.sql
-    └── 000001_create_products.down.sql
+└── user/
+    ├── 000001_create_users.up.sql
+    ├── 000001_create_users.down.sql
+    ├── 000003_add_timestamps_to_users.up.sql
+    └── 000003_add_timestamps_to_users.down.sql
 ```
 
 ## Migration Script
@@ -24,10 +21,9 @@ database/migrations/
 ```bash
 ./scripts/migrate.sh user up          # apply all pending migrations for user service
 ./scripts/migrate.sh user down 1      # roll back one migration
-./scripts/migrate.sh catalog up
 ```
 
-The script reads the root `.env` file and builds the connection string from prefixed vars (`USER_DB_*`, `CATALOG_DB_*`).
+The script reads the root `.env` file and builds the connection string from prefixed vars (`USER_DB_*`).
 
 Makefile targets delegate to this script:
 ```bash

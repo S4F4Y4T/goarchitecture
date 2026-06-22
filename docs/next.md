@@ -96,7 +96,7 @@ Replace service-to-service HTTP calls with gRPC once multiple services need to t
 ### Toolchain & Contracts
 - [ ] Install protobuf toolchain: `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc`, `protoc-gen-validate`
 - [ ] Create `proto/` directory at monorepo root for shared `.proto` definitions
-- [ ] Define service contracts: `proto/user/v1/user.proto`, `proto/catalog/v1/catalog.proto`
+- [ ] Define service contracts: `pkg/proto/user/user.proto` (done — see [grpc.md](grpc.md)); add one per future service that needs a gRPC server
 - [ ] Declare field validation rules in `.proto` using `protoc-gen-validate` (PGV) — e.g., `(validate.rules).string.uuid = true`; generated code validates at the handler boundary
 - [ ] Generate Go stubs into `pkg/proto/` via `make proto`
 

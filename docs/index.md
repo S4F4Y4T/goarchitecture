@@ -6,6 +6,7 @@ Design decision docs for this Go microservice project. Each doc covers the **wha
 
 | Topic | File | Summary |
 |---|---|---|
+| **Product Requirements** | [prd.md](prd.md) | What we're building (multi-tenant video upload & streaming SaaS) and why — assumptions, open questions, scope |
 | Project Setup & Start | [project-setup.md](project-setup.md) | Makefile, Air hot-reload, environment config, startup flow |
 | Folder Structure | [folder-structure.md](folder-structure.md) | Directory layout and what lives where |
 | Monorepo & Go Workspace | [monorepo-goworkspace.md](monorepo-goworkspace.md) | Multi-module Go workspace, why monorepo |

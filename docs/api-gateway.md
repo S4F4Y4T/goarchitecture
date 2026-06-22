@@ -21,14 +21,13 @@ The tradeoff: the Admin API (`:8001`) is read-only. You cannot add routes or con
 |---|---|---|
 | `http://localhost:8100/v1/users/...` | `user_app:6969/v1/users/...` | no |
 | `http://localhost:8100/v1/auth/...` | `user_app:6969/v1/auth/...` | no |
-| `http://localhost:8100/v1/products/...` | `catalog_app:7070/v1/products/...` | no |
 | `http://localhost:8100/docs` | `docs_app:9090/` | yes (`/docs` stripped) |
 
-`strip_path: false` — API paths are forwarded as-is. The path prefixes (`/v1/users`, `/v1/auth`, `/v1/products`) are unique across services so Kong can route on them without translation. The `/docs` route uses `strip_path: true` — the docs service serves from `/`, so the prefix must be stripped.
+`strip_path: false` — API paths are forwarded as-is. The path prefixes (`/v1/users`, `/v1/auth`) are unique across services so Kong can route on them without translation. The `/docs` route uses `strip_path: true` — the docs service serves from `/`, so the prefix must be stripped.
 
 ## Service Access
 
-The `user_app` and `catalog_app` containers use `expose` instead of `ports`. This makes their ports reachable within the Docker network (by Kong) but not from the host machine. All external traffic must go through Kong on port `8000`.
+Service containers use `expose` instead of `ports`. This makes their ports reachable within the Docker network (by Kong) but not from the host machine. All external traffic must go through Kong on port `8000`.
 
 ```yaml
 expose:
@@ -128,15 +127,6 @@ services:
       - name: user-service-auth      # public — no jwt plugin
         paths: [/v1/auth]
         strip_path: false
-    plugins: [cors, rate-limiting, correlation-id]
-
-  - name: catalog-service
-    url: http://catalog_app:7070
-    routes:
-      - name: catalog-service-routes  # protected
-        paths: [/v1/products]
-        strip_path: false
-        plugins: [jwt, request-transformer, post-function]
     plugins: [cors, rate-limiting, correlation-id]
 
   - name: docs-service              # public — no JWT
