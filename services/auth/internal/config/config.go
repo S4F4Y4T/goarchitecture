@@ -33,11 +33,12 @@ type CORSConfig struct {
 }
 
 type Config struct {
-	Port         int
-	UserGRPCAddr string
-	Redis        RedisConfig
-	JWT          JWTConfig
-	CORS         CORSConfig
+	Port            int
+	UserGRPCAddr    string
+	UserGRPCTimeout time.Duration
+	Redis           RedisConfig
+	JWT             JWTConfig
+	CORS            CORSConfig
 }
 
 func LoadConfig() (*Config, error) {
@@ -64,11 +65,12 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &Config{
-		Port:         portInt,
-		UserGRPCAddr: userGRPCAddr,
-		Redis:        redis,
-		JWT:          jwt,
-		CORS:         loadCORSConfig(),
+		Port:            portInt,
+		UserGRPCAddr:    userGRPCAddr,
+		UserGRPCTimeout: pkgconfig.GetEnvDuration("USER_GRPC_TIMEOUT", 5*time.Second),
+		Redis:           redis,
+		JWT:             jwt,
+		CORS:            loadCORSConfig(),
 	}, nil
 }
 

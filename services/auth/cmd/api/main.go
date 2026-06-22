@@ -41,7 +41,10 @@ func main() {
 	userConn, err := grpc.NewClient(
 		cfg.UserGRPCAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithChainUnaryInterceptor(grpcmiddleware.PropagateRequestID),
+		grpc.WithChainUnaryInterceptor(
+			grpcmiddleware.Timeout(cfg.UserGRPCTimeout),
+			grpcmiddleware.PropagateRequestID,
+		),
 	)
 	if err != nil {
 		slog.Error("connecting to user grpc service", "error", err)

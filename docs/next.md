@@ -210,10 +210,10 @@ Decouple services from each other for events that don't need an immediate respon
 ## Phase 9 — Advanced Resilience
 
 ### Circuit Breaker & Retry
-- [ ] Add `pkg/httpclient/` — shared HTTP client for service-to-service calls
+- [ ] Add `pkg/httpclient/` — shared HTTP client for service-to-service calls (not needed yet — the only inter-service call today is `auth` → `user`, and it's gRPC, not HTTP)
 - [ ] Circuit breaker with `sony/gobreaker` or `failsafe-go` — open after N consecutive failures, half-open probe after timeout
 - [ ] Exponential backoff with jitter for retries (never retry non-idempotent requests blindly)
-- [ ] Timeout on every outbound call (context deadline, not just server-level timeouts)
+- [x] Timeout on every outbound call (context deadline, not just server-level timeouts) — done for the gRPC `auth` → `user` call via `pkg/grpcmiddleware.Timeout` (`USER_GRPC_TIMEOUT`, default `5s`); see [grpc.md](grpc.md)
 
 ### Idempotency
 - [ ] Idempotency key header (`Idempotency-Key: <uuid>`) on POST/PUT endpoints

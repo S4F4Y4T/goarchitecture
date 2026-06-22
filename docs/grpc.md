@@ -108,7 +108,7 @@ healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 healthServer.SetServingStatus(pb.UserService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 ```
 
-This sets a static `SERVING` status once at startup — grpcmiddlewareit is **not** wired to live DB health the way the HTTP `/readyz` endpoint is. A request for an unregistered service name correctly returns `codes.NotFound` (the standard library's own behavior, not custom code here).
+This sets a static `SERVING` status once at startup — it is **not** wired to live DB health the way the HTTP `/readyz` endpoint is. A request for an unregistered service name correctly returns `codes.NotFound` (the standard library's own behavior, not custom code here).
 
 ### Error mapping (domain → wire)
 
@@ -143,12 +143,21 @@ The connection is established once at startup in `services/auth/cmd/api/main.go`
 userConn, _ := grpc.NewClient(
     cfg.UserGRPCAddr,
     grpc.WithTransportCredentials(insecure.NewCredentials()),
-    grpc.WithChainUnaryInterceptor(grpcmiddleware.PropagateRequestID),
+    grpc.WithChainUnaryInterceptor(
+        grpcmiddleware.Timeout(cfg.UserGRPCTimeout),
+        grpcmiddleware.PropagateRequestID,
+    ),
 )
 userClient := pb.NewUserServiceClient(userConn)
 ```
 
 `grpc.NewClient` is lazy — it doesn't dial until the first RPC.
+
+### Per-call deadline
+
+`pkg/grpcmiddleware.Timeout(d)` wraps every outbound call in `context.WithTimeout(ctx, d)` before invoking it — `d` comes from `USER_GRPC_TIMEOUT` (default `5s`). Without this, a hung or slow `user` service would hang the calling `auth` request indefinitely, since the HTTP request's own context carries no deadline. It only *tightens* the deadline — if the incoming `ctx` already has an earlier one, that one still wins.
+
+Verified by setting `USER_GRPC_TIMEOUT=1ms` and confirming a register call fails fast with `rpc error: code = DeadlineExceeded`, then restoring a sane value and confirming normal requests succeed again.
 
 ### Layout convention: `internal/clients/<service>/`
 
@@ -172,6 +181,7 @@ This does **not** carry over to Kubernetes / multi-node, where pod-to-pod traffi
 |---|---|---|
 | `GRPC_PORT` | user | Port the gRPC server listens on (separate from `PORT`, the HTTP port) |
 | `USER_GRPC_ADDR` | auth | `host:port` of the user service's gRPC server (`user_app:6970` in Docker Compose) |
+| `USER_GRPC_TIMEOUT` | auth | Per-call deadline for every `auth` → `user` RPC (default `5s`) |
 
 `auth` no longer has any `DB_*` env vars or a Postgres connection at all — `USER_GRPC_ADDR` is its only path to user data. Its `/readyz` checks Redis only; it does **not** currently verify the gRPC connection to `user` is healthy (see Known Gaps below).
 
@@ -179,9 +189,9 @@ This does **not** carry over to Kubernetes / multi-node, where pod-to-pod traffi
 
 This covers the [next.md](next.md) Phase 4 checklist. Deliberately not yet done:
 
-- **No per-call deadline.** RPCs use whatever context the HTTP handler passed in, which has no explicit timeout. A hung `user` service currently hangs the calling `auth` request instead of failing fast.
 - **Readiness doesn't reflect the dependency.** `auth`'s `/readyz` can return `200` even when `user_app` is completely unreachable. Relatedly, `user`'s `grpc_health_v1` status is static (set once at startup), not wired to a live DB ping the way HTTP's `/readyz` is.
 - **No load-balancing policy.** Fine for a single `user_app` container; `pick_first` (the default) won't spread load across replicas if `user` is ever scaled horizontally.
+- **No retry or circuit breaker.** A timeout now fails the call cleanly instead of hanging, but a sustained `user` outage still means every `auth` request fails individually — there's no backoff/retry and no circuit breaker to fail fast and stop hammering a down dependency (tracked in `next.md` Phase 9).
 - **No gRPC reflection.** `grpcurl`/`grpcui` need `-proto` passed explicitly instead of querying the server for its schema — confirmed by hand while testing the other fixes in this list.
 
 Request ID propagation, structured logging, panic recovery, and field validation (PGV) are now implemented — see the sections above.
