@@ -3,6 +3,7 @@ module github.com/s4f4y4t/go-microservice/pkg
 go 1.25.0
 
 require (
+	github.com/envoyproxy/protoc-gen-validate v1.3.3
 	github.com/go-playground/validator/v10 v10.30.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0

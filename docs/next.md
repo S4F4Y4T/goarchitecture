@@ -94,21 +94,21 @@ Centralizes cross-cutting concerns so individual services don't each implement t
 Replace service-to-service HTTP calls with gRPC once multiple services need to talk to each other. Keep REST/HTTP for external (client-facing) APIs; use gRPC only for internal (service-to-service) communication.
 
 ### Toolchain & Contracts
-- [ ] Install protobuf toolchain: `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc`, `protoc-gen-validate`
-- [ ] Create `proto/` directory at monorepo root for shared `.proto` definitions
-- [ ] Define service contracts: `pkg/proto/user/user.proto` (done — see [grpc.md](grpc.md)); add one per future service that needs a gRPC server
-- [ ] Declare field validation rules in `.proto` using `protoc-gen-validate` (PGV) — e.g., `(validate.rules).string.uuid = true`; generated code validates at the handler boundary
-- [ ] Generate Go stubs into `pkg/proto/` via `make proto`
+- [x] Install protobuf toolchain: `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc`, `protoc-gen-validate` — all four installed and in use
+- [ ] Create `proto/` directory at monorepo root for shared `.proto` definitions — done differently: lives at `pkg/proto/user/`, inside the shared `pkg` Go module, rather than a separate root-level `proto/` dir
+- [x] Define service contracts: `pkg/proto/user/user.proto` — see [grpc.md](grpc.md)
+- [x] Declare field validation rules in `.proto` using `protoc-gen-validate` (PGV) — e.g., `(validate.rules).string.email = true`, `.string.min_len = 8`; enforced server-side by `pkg/grpcmiddleware.Validation`
+- [x] Generate Go stubs into `pkg/proto/` via `make proto`
 
 ### Server & Client
-- [ ] Implement gRPC server alongside HTTP server in each service (separate internal port, e.g., `:50051` — `expose` only, not `ports`)
-- [ ] Implement gRPC client in services that need to call peers
-- [ ] Add gRPC interceptors: request ID propagation (read `X-Request-ID` from metadata), structured logging, panic recovery
-- [ ] Add gRPC health check protocol (`grpc_health_v1`) for load balancer / k8s probe integration
-- [ ] Add gRPC reflection for dev tooling (`grpcurl`, `grpcui`)
+- [x] Implement gRPC server alongside HTTP server — done for `user`, currently the only service that needs one (`:6970`, `expose` only, not `ports`); repeat this per future service that other services need to call
+- [x] Implement gRPC client in services that need to call peers — done for `auth` → `user`
+- [x] Add gRPC interceptors: request ID propagation (read `X-Request-ID` from metadata), structured logging, panic recovery — all three done (`pkg/grpcmiddleware.RequestID`/`Logger`/`Recovery`; client-side propagation via `pkg/grpcmiddleware.PropagateRequestID`)
+- [x] Add gRPC health check protocol (`grpc_health_v1`) for load balancer / k8s probe integration — `user` registers the standard health service, static `SERVING` status set at startup (not wired to live DB health yet)
+- [ ] Add gRPC reflection for dev tooling (`grpcurl`, `grpcui`) — confirmed missing; `grpcurl` currently requires passing `-proto` by hand instead of querying the server
 
 ### Auth
-- [ ] **Docker network (current)**: no gRPC auth required — internal ports are not reachable from outside the Docker network; trust the network boundary
+- [x] **Docker network (current)**: no gRPC auth required — internal ports are not reachable from outside the Docker network; trust the network boundary — implemented with `insecure.NewCredentials()`, decision documented in [grpc.md](grpc.md)
 - [ ] **Kubernetes / multi-node**: add mTLS — each service gets a cert, peers verify identity; use cert-manager or SPIFFE/SPIRE; no application-level token logic needed, the sidecar (Envoy / Linkerd) handles it transparently
 
 ---

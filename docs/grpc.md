@@ -13,10 +13,14 @@ External, client-facing APIs stay on REST/JSON through Kong. gRPC is used **only
 ## Contract
 
 ```
-pkg/proto/user/
-├── user.proto          hand-written source of truth
-├── user.pb.go          generated message types
-└── user_grpc.pb.go     generated client/server stubs
+pkg/proto/
+├── validate/
+│   └── validate.proto       vendored protoc-gen-validate well-known proto
+└── user/
+    ├── user.proto            hand-written source of truth
+    ├── user.pb.go            generated message types
+    ├── user.pb.validate.go   generated PGV Validate() methods
+    └── user_grpc.pb.go       generated client/server stubs
 ```
 
 ```protobuf
@@ -25,11 +29,39 @@ service UserService {
   rpc GetByEmail(GetByEmailRequest) returns (UserResponse);
   rpc Create(CreateRequest) returns (UserResponse);
 }
+
+message CreateRequest {
+  string name     = 1 [(validate.rules).string.min_len = 1];
+  string email    = 2 [(validate.rules).string.email = true];
+  string password = 3 [(validate.rules).string.min_len = 8];
+}
 ```
 
 These three RPCs are deliberately narrow — they're exactly the three methods `auth.UserLookup` needs (see [user-service-architecture.md](user-service-architecture.md) for how that interface was scoped before the services even split). `pkg/proto` lives in the shared `pkg` Go module so both services import the same generated types without a circular dependency between `services/auth` and `services/user`.
 
 `UserResponse.created_at` / `updated_at` are RFC3339 strings, not `google.protobuf.Timestamp` — avoids pulling in the well-known-types dependency for two fields nobody parses into anything but a Go `time.Time`.
+
+### Regenerating: `make proto`
+
+```bash
+make proto
+```
+
+Runs `protoc` (with `protoc-gen-go`, `protoc-gen-go-grpc`, `protoc-gen-validate`) over every `*.proto` under `pkg/proto`, using each file's own directory as both the import root and output directory (plus `pkg/proto` as a secondary import root, so `import "validate/validate.proto";` resolves). Adding a second service's proto (e.g. `pkg/proto/video/video.proto`) needs no Makefile changes — the target globs for `.proto` files automatically.
+
+### Field validation (protoc-gen-validate)
+
+`(validate.rules)` annotations in the `.proto` generate a `Validate() error` method on every message (`user.pb.validate.go`). `pkg/grpcmiddleware.Validation` enforces this generically for any request type that implements it — one interceptor, no per-RPC boilerplate, the gRPC-side equivalent of `pkg/validation` on the HTTP side:
+
+```go
+if v, ok := req.(interface{ Validate() error }); ok {
+    if err := v.Validate(); err != nil {
+        return nil, status.Error(codes.InvalidArgument, err.Error())
+    }
+}
+```
+
+A bad request (invalid email, password under 8 characters, empty name) is rejected with `codes.InvalidArgument` and a specific message (e.g. `invalid CreateRequest.Password: value length must be at least 8 runes`) before it ever reaches `GRPCServer`'s methods — `grpc_server.go` itself doesn't need to know validation happened.
 
 ## Server Side — `user` service
 
@@ -38,13 +70,45 @@ These three RPCs are deliberately narrow — they're exactly the three methods `
 `services/user/cmd/api/main.go` runs the gRPC server **alongside** the HTTP server, on its own port (`GRPC_PORT`, separate from `PORT`):
 
 ```go
-grpcServer := grpc.NewServer(grpc.UnaryInterceptor(recoveryInterceptor))
+grpcServer := grpc.NewServer(
+    grpc.ChainUnaryInterceptor(
+        grpcmiddleware.RequestID,
+        grpcmiddleware.Logger,
+        grpcmiddleware.Recovery,
+        grpcmiddleware.Validation,
+    ),
+    grpc.KeepaliveParams(keepalive.ServerParameters{Time: 30 * time.Second, Timeout: 10 * time.Second}),
+)
 pb.RegisterUserServiceServer(grpcServer, a.UserGRPCServer)
 lis, _ := net.Listen("tcp", ":"+strconv.Itoa(cfg.GRPCPort))
 go grpcServer.Serve(lis)
 ```
 
-`recoveryInterceptor` is the gRPC equivalent of `pkgmiddleware.PanicRecovery` on the HTTP side — a panic in one RPC handler becomes an `Internal` error instead of crashing the whole process (which would also take down the HTTP server, since they're one binary). `grpcServer.GracefulStop()` is called during shutdown, same spirit as `http.Server.Shutdown`.
+Interceptor order matters — `RequestID` must run outermost, before `Logger`/`Recovery`, since it's what populates the request-scoped logger they both read via `logger.FromContext(ctx)`. `Validation` runs innermost (closest to the handler) so a rejected request is still logged with its real outcome (`InvalidArgument`) and duration like any other call, not bypassed.
+
+`grpcmiddleware.Recovery` is the gRPC equivalent of `pkgmiddleware.PanicRecovery` on the HTTP side — a panic in one RPC handler becomes an `Internal` error instead of crashing the whole process (which would also take down the HTTP server, since they're one binary). `grpcServer.GracefulStop()` (raced against the shutdown deadline via `context.AfterFunc`, falling back to `Stop()`) is called during shutdown, same spirit as `http.Server.Shutdown`.
+
+### Request ID propagation
+
+`pkg/grpcmiddleware.RequestID` (server) and `PropagateRequestID` (client) carry the same `X-Request-ID` that the HTTP middleware chain establishes at the edge across the gRPC hop, using the `x-request-id` gRPC metadata key:
+
+- **Client** (`auth`, dial option): reads `middleware.GetRequestID(ctx)` — already in context because the same `ctx` flows unbroken from the HTTP handler down through `auth.Service` to the gRPC call — and attaches it to outgoing metadata.
+- **Server** (`user`, interceptor): reads `x-request-id` from incoming metadata (or mints a UUID if absent, e.g. when called by something other than `auth`), then populates *both* `middleware.WithRequestID` and a request-scoped `logger.WithContext` logger — so `Logger` and `Recovery` start including `request_id` in their log lines for free, no changes needed to either.
+
+The payoff: a single request ID now threads through both services' logs for one logical request — `grep <request_id>` across `auth_app` and `user_app` reconstructs the whole story, including which of `ExistsByEmail`/`Create` ran and how long each took.
+
+### Health check (`grpc_health_v1`)
+
+`user`'s gRPC server also registers the standard `google.golang.org/grpc/health` service, so orchestrators and tools (`grpcurl`, k8s gRPC probes) can query readiness via the canonical `grpc.health.v1.Health/Check` RPC instead of an ad-hoc one:
+
+```go
+healthServer := health.NewServer()
+healthpb.RegisterHealthServer(grpcServer, healthServer)
+healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
+healthServer.SetServingStatus(pb.UserService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+```
+
+This sets a static `SERVING` status once at startup — grpcmiddlewareit is **not** wired to live DB health the way the HTTP `/readyz` endpoint is. A request for an unregistered service name correctly returns `codes.NotFound` (the standard library's own behavior, not custom code here).
 
 ### Error mapping (domain → wire)
 
@@ -76,7 +140,11 @@ type UserLookup interface {
 The connection is established once at startup in `services/auth/cmd/api/main.go` and reused for the process lifetime (gRPC connections are HTTP/2 and meant to be long-lived, not dialed per request):
 
 ```go
-userConn, _ := grpc.NewClient(cfg.UserGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+userConn, _ := grpc.NewClient(
+    cfg.UserGRPCAddr,
+    grpc.WithTransportCredentials(insecure.NewCredentials()),
+    grpc.WithChainUnaryInterceptor(grpcmiddleware.PropagateRequestID),
+)
 userClient := pb.NewUserServiceClient(userConn)
 ```
 
@@ -109,13 +177,14 @@ This does **not** carry over to Kubernetes / multi-node, where pod-to-pod traffi
 
 ## Known Gaps
 
-This covers the "server + client alongside HTTP" half of the [next.md](next.md) Phase 4 checklist. Deliberately not yet done:
+This covers the [next.md](next.md) Phase 4 checklist. Deliberately not yet done:
 
 - **No per-call deadline.** RPCs use whatever context the HTTP handler passed in, which has no explicit timeout. A hung `user` service currently hangs the calling `auth` request instead of failing fast.
-- **No client-side interceptors.** The server has panic recovery; the client has no logging, no metrics, and doesn't propagate the HTTP request ID into gRPC metadata — correlating a failed `auth` request with the matching `user` service log line currently requires matching timestamps by hand.
-- **Readiness doesn't reflect the dependency.** `auth`'s `/readyz` can return `200` even when `user_app` is completely unreachable.
+- **Readiness doesn't reflect the dependency.** `auth`'s `/readyz` can return `200` even when `user_app` is completely unreachable. Relatedly, `user`'s `grpc_health_v1` status is static (set once at startup), not wired to a live DB ping the way HTTP's `/readyz` is.
 - **No load-balancing policy.** Fine for a single `user_app` container; `pick_first` (the default) won't spread load across replicas if `user` is ever scaled horizontally.
-- **No `grpc_health_v1` health protocol or reflection** — not needed yet since there's no load balancer probing gRPC directly and no use of `grpcurl`/`grpcui` in this workflow.
+- **No gRPC reflection.** `grpcurl`/`grpcui` need `-proto` passed explicitly instead of querying the server for its schema — confirmed by hand while testing the other fixes in this list.
+
+Request ID propagation, structured logging, panic recovery, and field validation (PGV) are now implemented — see the sections above.
 
 ## Alternatives Considered
 

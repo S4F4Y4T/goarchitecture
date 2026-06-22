@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/s4f4y4t/go-microservice/pkg/grpcmiddleware"
 	"github.com/s4f4y4t/go-microservice/pkg/logger"
 	pb "github.com/s4f4y4t/go-microservice/pkg/proto/user"
 	"github.com/s4f4y4t/go-microservice/pkg/token"
@@ -37,7 +38,11 @@ func main() {
 	}
 	defer rdb.Close()
 
-	userConn, err := grpc.NewClient(cfg.UserGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	userConn, err := grpc.NewClient(
+		cfg.UserGRPCAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor(grpcmiddleware.PropagateRequestID),
+	)
 	if err != nil {
 		slog.Error("connecting to user grpc service", "error", err)
 		os.Exit(1)

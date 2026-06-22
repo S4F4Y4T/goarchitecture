@@ -1,7 +1,9 @@
-.PHONY: run build dev clean test lint tidy \
+.PHONY: run build dev clean test lint tidy proto \
         migrate-up migrate-down migrate-create
 
 SVC ?= user
+
+PROTO_FILES := $(shell find pkg/proto -name '*.proto' -not -path 'pkg/proto/validate/*')
 
 run:
 	go run ./services/$(SVC)/cmd/api/main.go
@@ -35,3 +37,14 @@ migrate-down:
 
 migrate-create:
 	migrate create -ext sql -dir database/migrations/$(SVC) -seq $(name)
+
+proto:
+	@for f in $(PROTO_FILES); do \
+		dir=$$(dirname $$f); \
+		echo "protoc $$f"; \
+		protoc -I $$dir -I pkg/proto \
+			--go_out=$$dir --go_opt=paths=source_relative \
+			--go-grpc_out=$$dir --go-grpc_opt=paths=source_relative \
+			--validate_out=$$dir --validate_opt=paths=source_relative,lang=go \
+			$$f; \
+	done

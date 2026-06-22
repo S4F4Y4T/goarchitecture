@@ -20,6 +20,8 @@ import (
 	platformdatabase "github.com/s4f4y4t/go-microservice/services/user/internal/platform/database"
 	userrouter "github.com/s4f4y4t/go-microservice/services/user/internal/router"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 )
 
@@ -41,13 +43,23 @@ func main() {
 	a := app.Build(db)
 
 	grpcServer := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(grpcmiddleware.Logger, grpcmiddleware.Recovery),
+		grpc.ChainUnaryInterceptor(
+			grpcmiddleware.RequestID,
+			grpcmiddleware.Logger,
+			grpcmiddleware.Recovery,
+			grpcmiddleware.Validation,
+		),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			Time:    30 * time.Second,
 			Timeout: 10 * time.Second,
 		}),
 	)
 	pb.RegisterUserServiceServer(grpcServer, a.UserGRPCServer)
+
+	healthServer := health.NewServer()
+	healthpb.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(pb.UserService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 	lis, err := net.Listen("tcp", ":"+strconv.Itoa(cfg.GRPCPort))
 	if err != nil {
 		slog.Error("grpc listen", "error", err)

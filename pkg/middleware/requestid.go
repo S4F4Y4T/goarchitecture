@@ -33,10 +33,17 @@ func RequestID(next http.Handler) http.Handler {
 		w.Header().Set(RequestIDHeader, reqID)
 
 		// 3. inject into context
-		ctx := context.WithValue(r.Context(), RequestIDKey, reqID)
+		ctx := WithRequestID(r.Context(), reqID)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// WithRequestID returns a copy of ctx carrying id under the same key the
+// HTTP RequestID middleware uses, so non-HTTP entry points (e.g. gRPC
+// interceptors) can populate it too and GetRequestID works uniformly.
+func WithRequestID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, RequestIDKey, id)
 }
 
 // GetRequestID returns the request ID stored in ctx, or "" if none is set.
