@@ -21,9 +21,11 @@
 ├── pkg/                   # shared Go module (github.com/s4f4y4t/go-microservice/pkg)
 │   ├── apperror/          # typed application errors
 │   ├── config/            # env-var helpers
+│   ├── grpcmiddleware/    # reusable gRPC server interceptors (logging, panic recovery)
 │   ├── logger/            # structured JSON logger
 │   ├── middleware/        # reusable HTTP middleware
 │   ├── pagination/        # page/limit params + meta
+│   ├── proto/             # shared .proto sources + generated client/server stubs
 │   ├── query/             # filter/sort parser + GORM bridge
 │   ├── request/           # JSON decoding helpers
 │   ├── response/          # JSON response helpers
@@ -35,11 +37,12 @@
 │   │   ├── cmd/api/main.go
 │   │   ├── internal/
 │   │   │   ├── app/       # composition root
-│   │   │   ├── config/    # service-specific config (DB, Redis, JWT)
+│   │   │   ├── config/    # service-specific config (Redis, JWT, user-service gRPC address)
 │   │   │   ├── auth/      # feature module: dto, handler, service, token store
-│   │   │   ├── user/      # minimal user model + repo (read/create only; owns no schema)
-│   │   │   ├── health/    # liveness/readiness handler
-│   │   │   ├── platform/  # DB + Redis connection helpers
+│   │   │   ├── clients/
+│   │   │   │   └── user/  # gRPC client — satisfies auth.UserLookup; no DB access, see grpc.md
+│   │   │   ├── health/    # liveness/readiness handler (pings Redis)
+│   │   │   ├── platform/  # Redis connection helper
 │   │   │   └── router/    # route registration
 │   │   ├── .air.toml
 │   │   └── go.mod
@@ -47,8 +50,8 @@
 │   │   ├── cmd/api/main.go
 │   │   ├── internal/
 │   │   │   ├── app/       # composition root
-│   │   │   ├── config/    # service-specific config (DB only)
-│   │   │   ├── user/      # feature module: model, repository, service, handler, dto
+│   │   │   ├── config/    # service-specific config (DB + gRPC port)
+│   │   │   ├── user/      # feature module: model, repository, service, http handler, grpc server, dto
 │   │   │   ├── health/    # liveness/readiness handler
 │   │   │   ├── platform/  # DB connection helper
 │   │   │   └── router/    # route registration

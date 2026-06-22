@@ -8,7 +8,7 @@ import (
 	"github.com/s4f4y4t/go-microservice/pkg/token"
 	"github.com/s4f4y4t/go-microservice/services/auth/internal/auth"
 	"github.com/s4f4y4t/go-microservice/services/auth/internal/health"
-	"github.com/s4f4y4t/go-microservice/services/auth/internal/user"
+	"github.com/s4f4y4t/go-microservice/services/auth/internal/clients/user"
 )
 
 type App struct {

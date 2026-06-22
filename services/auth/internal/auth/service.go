@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/s4f4y4t/go-microservice/pkg/apperror"
 	"github.com/s4f4y4t/go-microservice/pkg/token"
-	"github.com/s4f4y4t/go-microservice/services/auth/internal/user"
+	"github.com/s4f4y4t/go-microservice/services/auth/internal/clients/user"
 	"golang.org/x/crypto/bcrypt"
 )
 
