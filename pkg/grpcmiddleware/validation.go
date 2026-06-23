@@ -3,22 +3,20 @@ package grpcmiddleware
 import (
 	"context"
 
+	"buf.build/go/protovalidate"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
-// validator is satisfied by any protoc-gen-validate-generated message.
-type validator interface {
-	Validate() error
-}
-
 // Validation rejects a request before it reaches the handler if the message
-// implements the protoc-gen-validate Validate() method and reports a
-// violation — the gRPC equivalent of pkg/validation on the HTTP side.
+// violates its protovalidate (buf.validate) rules — the gRPC equivalent of
+// pkg/validation on the HTTP side. Rules are read from the message's own
+// descriptor, so any proto.Message is covered with no generated code needed.
 func Validation(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-	if v, ok := req.(validator); ok {
-		if err := v.Validate(); err != nil {
+	if msg, ok := req.(proto.Message); ok {
+		if err := protovalidate.Validate(msg); err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 	}

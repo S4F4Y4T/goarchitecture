@@ -3,7 +3,7 @@
 
 SVC ?= user
 
-PROTO_FILES := $(shell find pkg/proto -name '*.proto' -not -path 'pkg/proto/validate/*')
+PROTO_FILES := $(shell find pkg/proto -name '*.proto' -not -path 'pkg/proto/buf/*')
 
 run:
 	go run ./services/$(SVC)/cmd/api/main.go
@@ -45,6 +45,5 @@ proto:
 		protoc -I $$dir -I pkg/proto \
 			--go_out=$$dir --go_opt=paths=source_relative \
 			--go-grpc_out=$$dir --go-grpc_opt=paths=source_relative \
-			--validate_out=$$dir --validate_opt=paths=source_relative,lang=go \
 			$$f; \
 	done

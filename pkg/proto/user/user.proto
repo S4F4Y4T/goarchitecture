@@ -2,7 +2,7 @@ syntax = "proto3";
 package user;
 option go_package = "github.com/s4f4y4t/go-microservice/pkg/proto/user";
 
-import "validate/validate.proto";
+import "buf/validate/validate.proto";
 
 service UserService {
   rpc ExistsByEmail(ExistsByEmailRequest) returns (ExistsByEmailResponse);
@@ -11,18 +11,18 @@ service UserService {
 }
 
 message ExistsByEmailRequest {
-  string email = 1 [(validate.rules).string.email = true];
+  string email = 1 [(buf.validate.field).string.email = true];
 }
 message ExistsByEmailResponse { bool exists = 1; }
 
 message GetByEmailRequest {
-  string email = 1 [(validate.rules).string.email = true];
+  string email = 1 [(buf.validate.field).string.email = true];
 }
 
 message CreateRequest {
-  string name     = 1 [(validate.rules).string.min_len = 1];
-  string email    = 2 [(validate.rules).string.email = true];
-  string password = 3 [(validate.rules).string.min_len = 8];
+  string name     = 1 [(buf.validate.field).string.min_len = 1];
+  string email    = 2 [(buf.validate.field).string.email = true];
+  string password = 3 [(buf.validate.field).string.min_len = 8];
 }
 
 message UserResponse {

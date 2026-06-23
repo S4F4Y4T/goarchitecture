@@ -14,12 +14,12 @@ External, client-facing APIs stay on REST/JSON through Kong. gRPC is used **only
 
 ```
 pkg/proto/
-├── validate/
-│   └── validate.proto       vendored protoc-gen-validate well-known proto
+├── buf/
+│   └── validate/
+│       └── validate.proto   vendored protovalidate well-known proto
 └── user/
     ├── user.proto            hand-written source of truth
     ├── user.pb.go            generated message types
-    ├── user.pb.validate.go   generated PGV Validate() methods
     └── user_grpc.pb.go       generated client/server stubs
 ```
 
@@ -31,9 +31,9 @@ service UserService {
 }
 
 message CreateRequest {
-  string name     = 1 [(validate.rules).string.min_len = 1];
-  string email    = 2 [(validate.rules).string.email = true];
-  string password = 3 [(validate.rules).string.min_len = 8];
+  string name     = 1 [(buf.validate.field).string.min_len = 1];
+  string email    = 2 [(buf.validate.field).string.email = true];
+  string password = 3 [(buf.validate.field).string.min_len = 8];
 }
 ```
 
@@ -47,21 +47,23 @@ These three RPCs are deliberately narrow — they're exactly the three methods `
 make proto
 ```
 
-Runs `protoc` (with `protoc-gen-go`, `protoc-gen-go-grpc`, `protoc-gen-validate`) over every `*.proto` under `pkg/proto`, using each file's own directory as both the import root and output directory (plus `pkg/proto` as a secondary import root, so `import "validate/validate.proto";` resolves). Adding a second service's proto (e.g. `pkg/proto/video/video.proto`) needs no Makefile changes — the target globs for `.proto` files automatically.
+Runs `protoc` (with `protoc-gen-go`, `protoc-gen-go-grpc`) over every `*.proto` under `pkg/proto`, using each file's own directory as both the import root and output directory (plus `pkg/proto` as a secondary import root, so `import "buf/validate/validate.proto";` resolves). Adding a second service's proto (e.g. `pkg/proto/video/video.proto`) needs no Makefile changes — the target globs for `.proto` files automatically.
 
-### Field validation (protoc-gen-validate)
+### Field validation (protovalidate)
 
-`(validate.rules)` annotations in the `.proto` generate a `Validate() error` method on every message (`user.pb.validate.go`). `pkg/grpcmiddleware.Validation` enforces this generically for any request type that implements it — one interceptor, no per-RPC boilerplate, the gRPC-side equivalent of `pkg/validation` on the HTTP side:
+`(buf.validate.field)` annotations in the `.proto` are stored as options on the compiled message descriptor — unlike the previous `protoc-gen-validate` (PGV) setup, no `Validate()` method is generated; there's no `user.pb.validate.go` at all. Validation is performed at runtime via reflection over the descriptor, evaluating each rule as a CEL expression. `pkg/grpcmiddleware.Validation` calls into this generically for any request, since every generated message already implements `proto.Message` — one interceptor, no per-RPC boilerplate, the gRPC-side equivalent of `pkg/validation` on the HTTP side:
 
 ```go
-if v, ok := req.(interface{ Validate() error }); ok {
-    if err := v.Validate(); err != nil {
+if msg, ok := req.(proto.Message); ok {
+    if err := protovalidate.Validate(msg); err != nil {
         return nil, status.Error(codes.InvalidArgument, err.Error())
     }
 }
 ```
 
-A bad request (invalid email, password under 8 characters, empty name) is rejected with `codes.InvalidArgument` and a specific message (e.g. `invalid CreateRequest.Password: value length must be at least 8 runes`) before it ever reaches `GRPCServer`'s methods — `grpc_server.go` itself doesn't need to know validation happened.
+A bad request (invalid email, password under 8 characters, empty name) is rejected with `codes.InvalidArgument` and a specific message per field (e.g. `validation errors:\n - name: must be at least 1 characters\n - email: must be a valid email address\n - password: must be at least 8 characters`) before it ever reaches `GRPCServer`'s methods — `grpc_server.go` itself doesn't need to know validation happened.
+
+**Why protovalidate over protoc-gen-validate:** PGV is in maintenance mode — its own repo now points new adopters to protovalidate. Switching cost was contained to the `.proto` annotations, the vendored well-known proto, and one interceptor function; `auth.Service` and `grpc_server.go` didn't change at all.
 
 ## Server Side — `user` service
 
@@ -194,7 +196,7 @@ This covers the [next.md](next.md) Phase 4 checklist. Deliberately not yet done:
 - **No retry or circuit breaker.** A timeout now fails the call cleanly instead of hanging, but a sustained `user` outage still means every `auth` request fails individually — there's no backoff/retry and no circuit breaker to fail fast and stop hammering a down dependency (tracked in `next.md` Phase 9).
 - **No gRPC reflection.** `grpcurl`/`grpcui` need `-proto` passed explicitly instead of querying the server for its schema — confirmed by hand while testing the other fixes in this list.
 
-Request ID propagation, structured logging, panic recovery, and field validation (PGV) are now implemented — see the sections above.
+Request ID propagation, structured logging, panic recovery, and field validation (protovalidate) are now implemented — see the sections above.
 
 ## Alternatives Considered
 

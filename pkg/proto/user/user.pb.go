@@ -7,7 +7,7 @@
 package user
 
 import (
-	_ "github.com/envoyproxy/protoc-gen-validate/validate"
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -303,17 +303,17 @@ var File_user_proto protoreflect.FileDescriptor
 const file_user_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"user.proto\x12\x04user\x1a\x17validate/validate.proto\"5\n" +
+	"user.proto\x12\x04user\x1a\x1bbuf/validate/validate.proto\"5\n" +
 	"\x14ExistsByEmailRequest\x12\x1d\n" +
-	"\x05email\x18\x01 \x01(\tB\a\xfaB\x04r\x02`\x01R\x05email\"/\n" +
+	"\x05email\x18\x01 \x01(\tB\a\xbaH\x04r\x02`\x01R\x05email\"/\n" +
 	"\x15ExistsByEmailResponse\x12\x16\n" +
 	"\x06exists\x18\x01 \x01(\bR\x06exists\"2\n" +
 	"\x11GetByEmailRequest\x12\x1d\n" +
-	"\x05email\x18\x01 \x01(\tB\a\xfaB\x04r\x02`\x01R\x05email\"p\n" +
+	"\x05email\x18\x01 \x01(\tB\a\xbaH\x04r\x02`\x01R\x05email\"p\n" +
 	"\rCreateRequest\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xfaB\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
-	"\x05email\x18\x02 \x01(\tB\a\xfaB\x04r\x02`\x01R\x05email\x12#\n" +
-	"\bpassword\x18\x03 \x01(\tB\a\xfaB\x04r\x02\x10\bR\bpassword\"\xa2\x01\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
+	"\x05email\x18\x02 \x01(\tB\a\xbaH\x04r\x02`\x01R\x05email\x12#\n" +
+	"\bpassword\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\bR\bpassword\"\xa2\x01\n" +
 	"\fUserResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +

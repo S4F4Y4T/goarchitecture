@@ -94,10 +94,10 @@ Centralizes cross-cutting concerns so individual services don't each implement t
 Replace service-to-service HTTP calls with gRPC once multiple services need to talk to each other. Keep REST/HTTP for external (client-facing) APIs; use gRPC only for internal (service-to-service) communication.
 
 ### Toolchain & Contracts
-- [x] Install protobuf toolchain: `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc`, `protoc-gen-validate` — all four installed and in use
+- [x] Install protobuf toolchain: `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc` — all three installed and in use; `protoc-gen-validate` was used initially, since replaced by `protovalidate` (see below), which validates at runtime and needs no protoc plugin of its own
 - [ ] Create `proto/` directory at monorepo root for shared `.proto` definitions — done differently: lives at `pkg/proto/user/`, inside the shared `pkg` Go module, rather than a separate root-level `proto/` dir
 - [x] Define service contracts: `pkg/proto/user/user.proto` — see [grpc.md](grpc.md)
-- [x] Declare field validation rules in `.proto` using `protoc-gen-validate` (PGV) — e.g., `(validate.rules).string.email = true`, `.string.min_len = 8`; enforced server-side by `pkg/grpcmiddleware.Validation`
+- [x] Declare field validation rules in `.proto` using **protovalidate** — e.g., `(buf.validate.field).string.email = true`, `.string.min_len = 8`; enforced server-side by `pkg/grpcmiddleware.Validation`. Originally implemented with `protoc-gen-validate` (PGV), then migrated since PGV is in maintenance mode and its own repo recommends protovalidate for new work
 - [x] Generate Go stubs into `pkg/proto/` via `make proto`
 
 ### Server & Client
