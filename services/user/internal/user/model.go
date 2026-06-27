@@ -35,3 +35,10 @@ type Repository interface {
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	WithTx(ctx context.Context, fn func(Repository) error) error
 }
+
+// EventPublisher is the outbound port for the domain events UserService
+// emits — implemented by an adapter wrapping pkg/messaging/rabbitmq so the
+// service itself has no idea messaging is involved.
+type EventPublisher interface {
+	PublishUserCreated(ctx context.Context, u *User) error
+}

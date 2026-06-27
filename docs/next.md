@@ -82,7 +82,7 @@ Centralizes cross-cutting concerns so individual services don't each implement t
 - [x] Move rate limiting to gateway (Kong `rate-limiting` plugin, per-IP, 100 req/min) — service-level middleware commented out
 - [x] Move CORS handling to gateway (Kong `cors` plugin) — service-level middleware commented out
 - [x] Correlation ID injection at gateway (Kong `correlation-id` plugin → `X-Request-ID`)
-- [x] Add gateway-level auth token verification — Kong `jwt` plugin with RS256; applied per-route (`/v1/users`, `/v1/products`); `/v1/auth` stays public (see [auth.md](auth.md))
+- [x] Add gateway-level auth token verification — Kong `jwt` plugin with RS256; applied per-route (`/v1/users`, `/v1/notifications`); `/v1/auth` stays public (see [auth.md](auth.md))
 - [ ] Load balancing across multiple service instances
 - [ ] Circuit breaker at gateway for downstream service failures
 - [ ] SSL termination at gateway — services communicate over plain HTTP internally
@@ -118,13 +118,13 @@ Replace service-to-service HTTP calls with gRPC once multiple services need to t
 Decouple services from each other for events that don't need an immediate response.
 
 ### RabbitMQ (Task Queues & Simple Events)
-- [ ] Add RabbitMQ to `docker-compose.yml` (port 5672, management UI 15672)
-- [ ] Create `pkg/messaging/rabbitmq/` — connection, channel pool, publisher, consumer
-- [ ] Define message envelope struct: `{event_type, payload, trace_id, timestamp, version}`
-- [ ] Implement publisher with confirm mode (guarantee delivery to broker)
-- [ ] Implement consumer with manual ack — only ack after successful processing
-- [ ] Dead-letter queue (DLQ) for messages that fail after N retries
-- [ ] Example use case: user service publishes `user.created` → other services consume and react
+- [x] Add RabbitMQ to `docker-compose.yml` (port 5672, management UI 15672)
+- [x] Create `pkg/messaging/rabbitmq/` — connection, publisher, consumer, retry/DLQ topology — no channel pool yet, one channel per publisher/consumer is enough at current scale
+- [x] Define message envelope struct: `{event_id, event_type, payload, trace_id, timestamp, version}` — `event_id` added beyond the original spec, needed for consumer-side idempotency
+- [x] Implement publisher with confirm mode (guarantee delivery to broker)
+- [x] Implement consumer with manual ack — only ack after successful processing
+- [x] Dead-letter queue (DLQ) for messages that fail after N retries
+- [x] Example use case: user service publishes `user.created` → notification service consumes it and sends a welcome email — see [messaging.md](messaging.md) (the event/broker side) and [email.md](email.md) (the send/template side)
 
 ### Kafka (Event Streaming & Audit Log)
 - [ ] Add Kafka to `docker-compose.yml` (use Redpanda for local dev — same protocol, simpler setup)

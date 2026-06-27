@@ -67,7 +67,7 @@ A bad request (invalid email, password under 8 characters, empty name) is reject
 
 ## Server Side — `user` service
 
-`services/user/internal/user/grpc_server.go` implements `pb.UserServiceServer` and calls straight into the same `Repository` the HTTP handlers use — there's no separate gRPC-only business logic.
+`services/user/internal/user/grpc_server.go` implements `pb.UserServiceServer`. `ExistsByEmail` and `GetByEmail` still call straight into the same `Repository` the HTTP handlers use. `Create` calls `UserService.CreateWithPassword` rather than `repo.Create` directly — it used to bypass the service layer the same way the other two RPCs do, but that meant nothing at the service layer could ever react to a user actually being created over gRPC. Since `UserService` now publishes a `user.created` event after every insert (see [messaging.md](messaging.md)), the gRPC `Create` path needed a service-layer hook too, so it was routed through `UserService` like the HTTP `Create` path always was.
 
 `services/user/cmd/api/main.go` runs the gRPC server **alongside** the HTTP server, on its own port (`GRPC_PORT`, separate from `PORT`):
 

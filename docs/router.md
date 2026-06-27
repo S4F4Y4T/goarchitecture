@@ -44,7 +44,7 @@ RegisterUsersRoute(v1Mux, userHandler)
 mux.Handle("/v1/", http.StripPrefix("/v1", v1Mux))
 ```
 
-Routes are registered on a sub-mux that is then mounted at `/v1/`. Adding a new service group (e.g., `/v1/products/`) is a one-line `mux.Handle` call.
+Routes are registered on a sub-mux that is then mounted at `/v1/`. Adding a new service group (e.g., `/v1/notifications/`) is a one-line `mux.Handle` call.
 
 ## Route Registration: Separate Function
 

@@ -4,5 +4,6 @@ use (
 	./pkg
 	./services/auth
 	./services/docs
+	./services/notification
 	./services/user
 )

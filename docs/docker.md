@@ -16,7 +16,7 @@ RUN go mod download
 CMD ["air", "-c", "services/user/.air.toml"]
 ```
 
-Each service has its own Dockerfile (`Dockerfile.user`, `Dockerfile.auth`, `Dockerfile.docs`) following this same pattern, with the `CMD` pointing at the appropriate `.air.toml`. The `docs` service has no external Go dependencies so it has no `go.sum`.
+Each service has its own Dockerfile (`Dockerfile.user`, `Dockerfile.auth`, `Dockerfile.docs`, `Dockerfile.notification`) following this same pattern, with the `CMD` pointing at the appropriate `.air.toml`. Every Dockerfile copies *every* workspace module's `go.mod`/`go.sum` (not just its own) — `go mod download` inside a Go workspace needs all of them present to resolve, so adding a new service module means adding one `COPY` line to all the existing Dockerfiles too, or every other service's build breaks. The `docs` service has no external Go dependencies so it has no `go.sum`.
 
 The source code is **not** copied into the image at build time. It is mounted as a volume at runtime via `docker-compose.yml`. This means `docker compose up` reflects code changes immediately (via air) without rebuilding the image.
 
@@ -26,13 +26,17 @@ The project is in active development. A production image (Go builder stage → d
 ## Docker Compose Services
 
 ```
-auth_app         — auth service (exposed to Docker network only)
-user_app         — user service (exposed to Docker network only)
-user_postgres    — postgres:17-alpine (port 5433 on host)
-docs_app         — API docs service / Swagger UI (exposed to Docker network only)
-redis            — redis:7-alpine (port 6380 on host)
-kong             — Kong gateway (port 8100→8000 proxy, port 8101→8001 admin on host)
-pgadmin          — pgadmin4 (port 5050 on host)
+auth_app                — auth service (exposed to Docker network only)
+user_app                — user service (exposed to Docker network only)
+user_postgres           — postgres:17-alpine (port 5433 on host)
+notification_app        — notification service (exposed to Docker network only)
+notification_postgres   — postgres:17-alpine (port 5435 on host)
+docs_app                — API docs service / Swagger UI (exposed to Docker network only)
+redis                   — redis:7-alpine (port 6380 on host)
+rabbitmq                — rabbitmq:3.13-management-alpine (port 5672 broker, 15672 management UI on host)
+mailpit                 — local-dev SMTP catcher for notification_app (port 8025 web UI on host)
+kong                    — Kong gateway (port 8000 proxy, port 8002→8001 admin on host)
+pgadmin                 — pgadmin4 (port 5050 on host)
 ```
 
 ### Port Mapping Choices
@@ -42,17 +46,24 @@ Standard ports (5432, 6379) are deliberately avoided on the host side:
 | Service | Container port | Host port | Why offset |
 |---|---|---|---|
 | user_postgres | 5432 | 5433 | Avoids collision with any local Postgres |
+| notification_postgres | 5432 | 5435 | Avoids collision with any local Postgres |
 | redis | 6379 | 6380 | Avoids collision with any local Redis |
 
 A developer can run `docker compose up` even if they have a local Postgres or Redis already running on the standard ports.
 
 ### Database Per Service
 
-Each service that needs Postgres gets its own container with its own volume (`user_postgres_data`). Services never share a container or a volume. This mirrors the production architecture (database-per-service) so local dev matches prod behavior.
+Each service that needs Postgres gets its own container with its own volume (`user_postgres_data`, `notification_postgres_data`). Services never share a container or a volume. This mirrors the production architecture (database-per-service) so local dev matches prod behavior.
 
 ### Redis
 
 Currently only `auth_app` connects to Redis, for refresh-token storage (`refresh:<token>` keys). The container is provisioned as shared infrastructure so any other service that needs Redis (rate limiting, caching) can connect to the same instance without adding a new container; keys would be namespaced per service to avoid collisions.
+
+### RabbitMQ & Mailpit
+
+`rabbitmq` is shared infrastructure the same way `redis` is: `user_app` publishes to it, `notification_app` consumes from it — see [messaging.md](messaging.md) for the topology. Its username is deliberately not `guest` (RabbitMQ hardcodes that user to loopback-only connections, which would block every other container).
+
+`mailpit` is a local-dev-only SMTP catcher — `notification_app` sends real SMTP traffic to it instead of a live provider, viewable at its web UI (`http://localhost:8025`). It has no role in production; `NOTIFICATION_SMTP_*` env vars point at a real provider there instead, with no code change — see [email.md](email.md).
 
 ### Health Checks
 

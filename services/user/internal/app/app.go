@@ -12,9 +12,9 @@ type App struct {
 	UserGRPCServer  *user.GRPCServer
 }
 
-func Build(db *gorm.DB) *App {
+func Build(db *gorm.DB, publisher user.EventPublisher) *App {
 	userRepo := user.NewUserRepository(db)
-	userSvc := user.NewUserService(userRepo)
+	userSvc := user.NewUserService(userRepo, publisher)
 
 	return &App{
 		UserGRPCServer:  user.NewGRPCServer(userSvc),

@@ -18,6 +18,7 @@ import (
 	"github.com/s4f4y4t/go-microservice/services/user/internal/app"
 	"github.com/s4f4y4t/go-microservice/services/user/internal/config"
 	platformdatabase "github.com/s4f4y4t/go-microservice/services/user/internal/platform/database"
+	platformmessaging "github.com/s4f4y4t/go-microservice/services/user/internal/platform/messaging"
 	userrouter "github.com/s4f4y4t/go-microservice/services/user/internal/router"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -40,7 +41,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	a := app.Build(db)
+	amqpConn, err := platformmessaging.Open(cfg.RabbitMQ)
+	if err != nil {
+		slog.Error("setting up rabbitmq", "error", err)
+		os.Exit(1)
+	}
+
+	publisher, err := platformmessaging.NewEventPublisher(amqpConn, cfg.RabbitMQ.Exchange)
+	if err != nil {
+		slog.Error("setting up event publisher", "error", err)
+		os.Exit(1)
+	}
+
+	a := app.Build(db, publisher)
 
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
@@ -125,6 +138,10 @@ func main() {
 		}
 	}()
 	wg.Wait()
+
+	if err := amqpConn.Close(); err != nil {
+		slog.Error("closing rabbitmq connection", "error", err)
+	}
 
 	os.Exit(exitCode)
 }

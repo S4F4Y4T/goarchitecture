@@ -4,12 +4,12 @@
 
 A dedicated Go microservice (`services/docs`) that serves a single Swagger UI covering all API routes. It is not part of any business service — it is a cross-cutting concern with its own container, its own `go.mod`, and its own lifecycle.
 
-All "Try it out" calls in the UI go through Kong at `http://localhost:8100`, not directly to any service.
+All "Try it out" calls in the UI go through Kong at `http://localhost:8000`, not directly to any service.
 
 ## Access
 
 ```
-http://localhost:8100/docs
+http://localhost:8000/docs
 ```
 
 Kong proxies the `/docs` path to `docs_app:9090` with `strip_path: true`. The docs service serves from `/`, so the prefix is stripped before forwarding.
@@ -62,14 +62,14 @@ This means the compiled binary carries the HTML and YAML inside it — no runtim
 |---|---|
 | `health` | `/healthz`, `/readyz` |
 | `auth` | `/v1/auth/register`, `/v1/auth/login`, `/v1/auth/refresh`, `/v1/auth/logout` |
-| `users` | `/v1/users/me`, `/v1/users/{id}`, ... |
-| `products` | `/v1/products`, `/v1/products/{id}`, ... |
+| `users` | `/v1/users/`, `/v1/users/{id}` |
+| `notifications` | `/v1/notifications/`, `/v1/notifications/{id}` (read-only) |
 
 The `servers` block points to Kong, not to any individual service:
 
 ```yaml
 servers:
-  - url: http://localhost:8100
+  - url: http://localhost:8000
     description: API Gateway
 ```
 

@@ -1,0 +1,18 @@
+FROM golang:1.25-alpine
+
+RUN apk add --no-cache make
+
+WORKDIR /app
+
+RUN go install github.com/air-verse/air@latest
+
+COPY go.work go.work.sum ./
+COPY pkg/go.mod pkg/go.sum ./pkg/
+COPY services/auth/go.mod services/auth/go.sum ./services/auth/
+COPY services/user/go.mod services/user/go.sum ./services/user/
+COPY services/docs/go.mod ./services/docs/
+COPY services/notification/go.mod services/notification/go.sum ./services/notification/
+
+RUN go mod download
+
+CMD ["air", "-c", "services/notification/.air.toml"]

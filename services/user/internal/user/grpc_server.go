@@ -36,7 +36,7 @@ func (s *GRPCServer) GetByEmail(ctx context.Context, req *pb.GetByEmailRequest) 
 }
 
 func (s *GRPCServer) Create(ctx context.Context, req *pb.CreateRequest) (*pb.UserResponse, error) {
-	u, err := s.svc.repo.Create(ctx, &User{Name: req.Name, Email: req.Email, Password: req.Password})
+	u, err := s.svc.CreateWithPassword(ctx, req.Name, req.Email, req.Password)
 	if err != nil {
 		return nil, toGRPCError(err)
 	}

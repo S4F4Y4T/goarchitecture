@@ -30,6 +30,66 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ── Notification service ─────────────────────────────────────────────────────
+  notification_app:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.notification
+    container_name: notification_app
+    expose:
+      - "${NOTIFICATION_APP_PORT}"
+    volumes:
+      - .:/app
+      - go_cache:/root/go/pkg/mod
+    environment:
+      PORT: ${NOTIFICATION_APP_PORT}
+      LOG_LEVEL: ${NOTIFICATION_LOG_LEVEL}
+      DB_HOST: notification_postgres
+      DB_PORT: 5432
+      DB_USER: ${NOTIFICATION_DB_USER}
+      DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      DB_NAME: ${NOTIFICATION_DB_NAME}
+      DB_SSLMODE: ${NOTIFICATION_DB_SSLMODE}
+      DB_MAX_OPEN_CONNS: ${NOTIFICATION_DB_MAX_OPEN_CONNS}
+      DB_MAX_IDLE_CONNS: ${NOTIFICATION_DB_MAX_IDLE_CONNS}
+      DB_CONN_MAX_LIFETIME: ${NOTIFICATION_DB_CONN_MAX_LIFETIME}
+      DB_CONN_MAX_IDLE_TIME: ${NOTIFICATION_DB_CONN_MAX_IDLE_TIME}
+      CORS_ALLOWED_ORIGINS: ${NOTIFICATION_CORS_ALLOWED_ORIGINS}
+      NOTIFICATION_CONSUMER_MAX_RETRIES: ${NOTIFICATION_CONSUMER_MAX_RETRIES}
+      NOTIFICATION_CONSUMER_RETRY_TTL: ${NOTIFICATION_CONSUMER_RETRY_TTL}
+      NOTIFICATION_SMTP_HOST: ${NOTIFICATION_SMTP_HOST}
+      NOTIFICATION_SMTP_PORT: ${NOTIFICATION_SMTP_PORT}
+      NOTIFICATION_SMTP_USERNAME: ${NOTIFICATION_SMTP_USERNAME}
+      NOTIFICATION_SMTP_PASSWORD: ${NOTIFICATION_SMTP_PASSWORD}
+      NOTIFICATION_SMTP_FROM_NAME: ${NOTIFICATION_SMTP_FROM_NAME}
+      NOTIFICATION_SMTP_FROM_ADDRESS: ${NOTIFICATION_SMTP_FROM_ADDRESS}
+      NOTIFICATION_SMTP_USE_TLS: ${NOTIFICATION_SMTP_USE_TLS}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
+    depends_on:
+      notification_postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  notification_postgres:
+    image: postgres:17-alpine
+    container_name: notification_postgres
+    environment:
+      POSTGRES_USER: ${NOTIFICATION_DB_USER}
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      POSTGRES_DB: ${NOTIFICATION_DB_NAME}
+    ports:
+      - "${NOTIFICATION_DB_PORT}:5432"
+    volumes:
+      - notification_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOTIFICATION_DB_USER} -d ${NOTIFICATION_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── User service ────────────────────────────────────────────────────────────
   user_app:
     build:
@@ -57,8 +117,12 @@ services:
       DB_CONN_MAX_LIFETIME: ${USER_DB_CONN_MAX_LIFETIME}
       DB_CONN_MAX_IDLE_TIME: ${USER_DB_CONN_MAX_IDLE_TIME}
       CORS_ALLOWED_ORIGINS: ${USER_CORS_ALLOWED_ORIGINS}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
     depends_on:
       user_postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     restart: unless-stopped
 
@@ -119,6 +183,8 @@ services:
         condition: service_started
       docs_app:
         condition: service_started
+      notification_app:
+        condition: service_started
     healthcheck:
       test: ["CMD", "kong", "health"]
       interval: 10s
@@ -141,6 +207,35 @@ services:
       retries: 5
     restart: unless-stopped
 
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "${RABBITMQ_PORT}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Local-dev-only SMTP catcher — notification_app sends real SMTP traffic
+  # here instead of a live provider; view sent mail at the mapped UI port.
+  mailpit:
+    image: axllent/mailpit
+    container_name: mailpit
+    expose:
+      - "${MAILPIT_SMTP_PORT}"
+    ports:
+      - "${MAILPIT_UI_PORT}:8025"
+    restart: unless-stopped
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin
@@ -157,6 +252,8 @@ services:
 
 volumes:
   user_postgres_data:
+  notification_postgres_data:
   redis_data:
+  rabbitmq_data:
   pgadmin_data:
   go_cache:

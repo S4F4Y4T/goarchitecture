@@ -19,9 +19,10 @@ The tradeoff: the Admin API (`:8001`) is read-only. You cannot add routes or con
 
 | External path | Forwarded to | Strip prefix |
 |---|---|---|
-| `http://localhost:8100/v1/users/...` | `user_app:6969/v1/users/...` | no |
-| `http://localhost:8100/v1/auth/...` | `user_app:6969/v1/auth/...` | no |
-| `http://localhost:8100/docs` | `docs_app:9090/` | yes (`/docs` stripped) |
+| `http://localhost:8000/v1/users/...` | `user_app:6969/v1/users/...` | no |
+| `http://localhost:8000/v1/auth/...` | `auth_app:6868/v1/auth/...` | no |
+| `http://localhost:8000/v1/notifications/...` | `notification_app:7171/v1/notifications/...` | no |
+| `http://localhost:8000/docs` | `docs_app:9090/` | yes (`/docs` stripped) |
 
 `strip_path: false` — API paths are forwarded as-is. The path prefixes (`/v1/users`, `/v1/auth`) are unique across services so Kong can route on them without translation. The `/docs` route uses `strip_path: true` — the docs service serves from `/`, so the prefix must be stripped.
 
@@ -39,7 +40,7 @@ expose:
 Four plugins are in play — three at the service level, one at the route level.
 
 ### JWT Verification (route-level)
-Applied to `/v1/users` and `/v1/products` only — not `/v1/auth`. Three plugins run in sequence on each protected request:
+Applied to `/v1/users` and `/v1/notifications` only — not `/v1/auth`. Three plugins run in sequence on each protected request:
 
 1. **`jwt`** — reads the `iss` claim, finds the matching consumer credential (`key: go-microservice`), and verifies the RS256 signature using the embedded RSA public key. Requests with a missing, expired, or tampered token receive `401` before going further.
 
@@ -70,7 +71,7 @@ end
 
 The token string (not a parsed table) is extracted from shared context, the payload section is base64-decoded manually, and the `uid` field is pulled out with a pattern match. This avoids a JSON library dependency in Lua.
 
-The public key lives in the `consumers` block of `kong.yml`. The private key lives only in the user service. See [auth.md](auth.md) for the full token lifecycle.
+The public key lives in the `consumers` block of `kong.yml`. The private key lives only in the auth service. See [auth.md](auth.md) for the full token lifecycle.
 
 ### CORS
 Handles preflight `OPTIONS` requests and sets `Access-Control-*` headers on all responses. Configured at the gateway so the services themselves do not need to set these headers.
@@ -96,8 +97,8 @@ The service-level `middleware.RequestID` middleware is still active — it reads
 
 | Port | What | Notes |
 |---|---|---|
-| `8100` (host) → `8000` (container) | Kong proxy | External entry point for all API traffic |
-| `8101` (host) → `8001` (container) | Kong Admin API | Read-only in DB-less mode |
+| `8000` (host) → `8000` (container) | Kong proxy | External entry point for all API traffic |
+| `8002` (host) → `8001` (container) | Kong Admin API | Read-only in DB-less mode |
 
 ## Declarative Config
 
@@ -117,6 +118,14 @@ consumers:
           -----END PUBLIC KEY-----
 
 services:
+  - name: auth-service               # public — no jwt plugin
+    url: http://auth_app:6868
+    routes:
+      - name: auth-service-routes
+        paths: [/v1/auth]
+        strip_path: false
+    plugins: [cors, rate-limiting, correlation-id]
+
   - name: user-service
     url: http://user_app:6969
     routes:
@@ -124,9 +133,15 @@ services:
         paths: [/v1/users]
         strip_path: false
         plugins: [jwt, request-transformer, post-function]
-      - name: user-service-auth      # public — no jwt plugin
-        paths: [/v1/auth]
+    plugins: [cors, rate-limiting, correlation-id]
+
+  - name: notification-service
+    url: http://notification_app:7171
+    routes:
+      - name: notification-service-notifications   # protected, read-only
+        paths: [/v1/notifications]
         strip_path: false
+        plugins: [jwt, request-transformer, post-function]
     plugins: [cors, rate-limiting, correlation-id]
 
   - name: docs-service              # public — no JWT

@@ -52,7 +52,7 @@ openssl rsa -in deploy/kong/jwt.key -pubout -out deploy/kong/jwt.key.pub
 
 The public key is embedded in `deploy/kong/kong.yml` under the `consumers` block so Kong can verify signatures without a database call.
 
-Kong verifies the JWT at the gateway for `/v1/users` and `/v1/products`, then injects `X-User-ID` as a trusted header. The service-level `Auth` middleware reads this header to get the user ID — no JWT parsing in the service.
+Kong verifies the JWT at the gateway for `/v1/users` and `/v1/notifications`, then injects `X-User-ID` as a trusted header. The service-level `Auth` middleware reads this header to get the user ID — no JWT parsing in the service.
 
 ## Token Package (`pkg/token`)
 

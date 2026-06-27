@@ -7,6 +7,7 @@ Each service owns its own Postgres instance. No shared tables, no cross-service 
 | Service | Database | Port (host) |
 |---|---|---|
 | user | user_db | 5433 |
+| notification | notification_db | 5435 |
 
 Services never reach into another service's database. If one service needs another's data, it calls that service's API (HTTP or gRPC) or consumes an event — never a direct query against its tables.
 
@@ -36,11 +37,13 @@ This identical top-level shape (`bootstrap/`, `config/`, one package per feature
 ## Service Boundaries
 
 Services are separated by **domain** (bounded context), not by technical layer:
-- **user service**: everything about users — registration, profile, lookup
+- **auth service**: credentials, JWT issuance/rotation, registration
+- **user service**: user profile data — CRUD, lookup, owns the `users` table
+- **notification service**: reacts to domain events from other services and delivers them (currently: welcome email on `user.created`)
 
 Each service exposes a REST API over HTTP for clients. Service-to-service calls use:
 - **Synchronous**: gRPC — currently `auth` → `user` only, see [grpc.md](grpc.md)
-- **Asynchronous**: message queue (NATS / RabbitMQ / Kafka) for events like "user created" — not yet implemented
+- **Asynchronous**: RabbitMQ — `user` publishes `user.created`, `notification` consumes it to send a welcome email, see [messaging.md](messaging.md) and [email.md](email.md)
 
 ## Health Endpoints
 

@@ -12,6 +12,8 @@ tags:
   - name: auth
     description: Registration, login, token refresh, and logout
   - name: users
+  - name: notifications
+    description: Read-only audit log of notifications sent by the notification service (e.g. welcome emails)
 
 paths:
   /healthz:
@@ -288,6 +290,96 @@ paths:
         "404":
           $ref: "#/components/responses/ErrorResponse"
 
+  /v1/notifications/:
+    get:
+      tags: [notifications]
+      summary: List sent notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+            example: 10
+        - name: sort
+          in: query
+          required: false
+          description: >
+            Comma-separated fields in priority order; a leading '-' sorts
+            descending. Allowed fields: id, type, recipient, status,
+            created_at, updated_at.
+          schema:
+            type: string
+            example: -created_at
+        - name: filter[recipient]
+          in: query
+          required: false
+          description: Case-insensitive partial match on recipient email (ILIKE).
+          schema:
+            type: string
+            example: "@example.com"
+        - name: filter[type]
+          in: query
+          required: false
+          description: Exact match on event type, e.g. `user.created`.
+          schema:
+            type: string
+            example: user.created
+        - name: filter[status]
+          in: query
+          required: false
+          description: Exact match on delivery status.
+          schema:
+            type: string
+            enum: [sent, failed]
+            example: sent
+      responses:
+        "200":
+          description: Notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseNotificationList"
+        "500":
+          $ref: "#/components/responses/ErrorResponse"
+
+  /v1/notifications/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [notifications]
+      summary: Get a notification by ID
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Notification retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseNotification"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
 components:
   securitySchemes:
     BearerAuth:
@@ -463,6 +555,60 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/User"
+            meta:
+              $ref: "#/components/schemas/PaginationMeta"
+
+    Notification:
+      type: object
+      description: An audit row written by the notification service's RabbitMQ consumer — never created via this API.
+      properties:
+        id:
+          type: integer
+          example: 1
+        event_id:
+          type: string
+          format: uuid
+          description: The triggering event's id — unique, used for idempotent consumption.
+          example: a9fc4f03-bed0-4602-8d09-8563e50449a0
+        type:
+          type: string
+          example: user.created
+        recipient:
+          type: string
+          format: email
+          example: alice@example.com
+        status:
+          type: string
+          enum: [sent, failed]
+          example: sent
+        error:
+          type: string
+          nullable: true
+          description: Set only when status is failed (e.g. retries exhausted).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ApiResponseNotification:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/Notification"
+
+    ApiResponseNotificationList:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/Notification"
             meta:
               $ref: "#/components/schemas/PaginationMeta"
 

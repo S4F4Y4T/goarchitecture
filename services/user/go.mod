@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/rabbitmq/amqp091-go v1.12.0
 	github.com/s4f4y4t/go-microservice/pkg v0.0.0
 	google.golang.org/grpc v1.81.1
 	gorm.io/driver/postgres v1.6.0

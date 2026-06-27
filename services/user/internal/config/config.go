@@ -43,10 +43,16 @@ type CORSConfig struct {
 	AllowedOrigins []string
 }
 
+type RabbitMQConfig struct {
+	URL      string
+	Exchange string
+}
+
 type Config struct {
 	Port     int
 	GRPCPort int
 	DB       DBConfig
+	RabbitMQ RabbitMQConfig
 	CORS     CORSConfig
 }
 
@@ -68,12 +74,30 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
+	rabbitmq, err := loadRabbitMQConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		Port:     portInt,
 		GRPCPort: grpcPortInt,
 		DB:       db,
+		RabbitMQ: rabbitmq,
 		CORS:     loadCORSConfig(),
 	}, nil
+}
+
+func loadRabbitMQConfig() (RabbitMQConfig, error) {
+	url := os.Getenv("RABBITMQ_URL")
+	if url == "" {
+		return RabbitMQConfig{}, fmt.Errorf("RABBITMQ_URL is required")
+	}
+	exchange := os.Getenv("RABBITMQ_EXCHANGE")
+	if exchange == "" {
+		exchange = "domain_events"
+	}
+	return RabbitMQConfig{URL: url, Exchange: exchange}, nil
 }
 
 func loadCORSConfig() CORSConfig {
